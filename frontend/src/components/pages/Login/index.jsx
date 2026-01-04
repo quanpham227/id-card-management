@@ -4,6 +4,8 @@ import { Card, Form, Input, Button, message, Typography } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import axiosClient from '../../../api/axiosClient';
 
+
+
 const { Title, Text } = Typography;
 
 const Login = () => {
@@ -44,8 +46,14 @@ const Login = () => {
     <div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f2f5' }}>
       <Card style={{ width: 400, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
         <div style={{ textAlign: 'center', marginBottom: 30 }}>
-          <Title level={3}>ID System</Title>
-          <Text type="secondary">Internal Management System</Text>
+          <img 
+              src="/assets/logo.png" 
+              alt="Company Logo" 
+              style={{ width: 100, height: 'auto', objectFit: 'contain' }} 
+              onError={(e) => e.target.style.display = 'none'} // Ẩn nếu không tìm thấy file
+            />
+          <Title level={3}>Internal Management System</Title>
+          
         </div>
 
         <Form name="login" onFinish={onFinish} layout="vertical">
