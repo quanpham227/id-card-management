@@ -8,13 +8,19 @@ const HorizontalCard = ({
   imageError,
   setImageError,
   showStamp,
-  pregnancyInfo // Object chứa line1, line2 và isPregnancy từ IdCard.jsx
+  pregnancyInfo // Object chứa line1, line2
 }) => {
-  // Xác định xem đây có phải thẻ đặc biệt (Bầu hoặc Con nhỏ) không
-  const isSpecialCard = !!pregnancyInfo;
-  
-  // Thẻ đặc biệt dùng màu Đen, thẻ thường dùng màu Trắng
-  const textColor = isSpecialCard ? '#000000' : '#ffffff';
+  // --- XÁC ĐỊNH MÀU CHỮ ---
+  // Có thông tin thai sản => Luôn là màu ĐEN
+  // Không có => Luôn là màu TRẮNG (cho Staff/Manager)
+  const isMaternityCard = !!pregnancyInfo; 
+  const textColor = isMaternityCard ? '#000000' : '#ffffff';
+
+  // --- XÁC ĐỊNH VIỀN ẢNH ---
+  // Thẻ bầu (nền trắng/sáng) => Viền đen
+  // Thẻ thường (nền xanh đậm) => Viền trắng mờ
+  const borderColor = isMaternityCard ? '#000000' : 'rgba(255,255,255,0.6)';
+  const photoBg = isMaternityCard ? 'transparent' : 'rgba(255,255,255,0.1)';
 
   return (
     <div
@@ -28,50 +34,45 @@ const HorizontalCard = ({
         position: 'relative',
         display: 'flex',
         fontFamily: "'Roboto', Arial, sans-serif",
-        color: textColor,
+        color: textColor, // Áp dụng màu chữ động
         boxSizing: 'border-box'
       }}
     >
       {/* ===== CỘT ẢNH (BÊN TRÁI) ===== */}
-      {/* ===== CỘT ẢNH (BÊN TRÁI) ===== */}
-    <div style={{ width: '30mm', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingLeft: '4mm' }}>
-      <div style={{
-          width: '23mm',
-          height: '30mm',
-          position: 'relative',
-          // CẬP NHẬT: Bo góc cho khung bên ngoài
-          borderRadius: '8px', 
-          border: `1px solid ${isSpecialCard ? '#000000' : 'rgba(255,255,255,0.6)'}`,
-          background: isSpecialCard ? 'transparent' : 'rgba(255,255,255,0.1)',
-          // QUAN TRỌNG: Cắt phần thừa của ảnh để bo theo khung
-          overflow: 'hidden' 
-      }}>
-    {!imageError ? (
-      <img 
-        src={employeeImg} 
-        alt="Avatar" 
-        onError={() => setImageError(true)} 
-        style={{ 
-          width: '100%', 
-          height: '100%', 
-          objectFit: 'cover', 
-          // Đảm bảo ảnh cũng có borderRadius tương ứng
-          borderRadius: '8px', 
-          display: 'block' 
-        }} 
-      />
-    ) : (
-      <NoImagePlaceholder isDarkBg={!isSpecialCard} />
-    )}
+      <div style={{ width: '30mm', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingLeft: '4mm' }}>
+        <div style={{
+            width: '23mm',
+            height: '30mm',
+            position: 'relative',
+            borderRadius: '8px', 
+            border: `1px solid ${borderColor}`,
+            background: photoBg,
+            overflow: 'hidden' 
+        }}>
+          {!imageError ? (
+            <img 
+              src={employeeImg} 
+              alt="Avatar" 
+              onError={() => setImageError(true)} 
+              style={{ 
+                width: '100%', 
+                height: '100%', 
+                objectFit: 'cover', 
+                borderRadius: '8px', 
+                display: 'block' 
+              }} 
+            />
+          ) : (
+            <NoImagePlaceholder isDarkBg={!isMaternityCard} />
+          )}
 
-    {/* CON DẤU - Giữ nguyên vị trí tuyệt đối */}
-    {showStamp && (
-      <div style={{ position: 'absolute', bottom: '-3mm', right: '-3mm', zIndex: 999 }}>
-        <CardStamp />
+          {showStamp && (
+            <div style={{ position: 'absolute', bottom: '-3mm', right: '-3mm', zIndex: 999 }}>
+              <CardStamp />
+            </div>
+          )}
+        </div>
       </div>
-    )}
-  </div>
-</div>
 
       {/* ===== CỘT THÔNG TIN (CĂN GIỮA) ===== */}
       <div
@@ -83,19 +84,20 @@ const HorizontalCard = ({
           alignItems: 'center',
           textAlign: 'center',
           paddingRight: '4mm',
-          // Đẩy toàn bộ cụm chữ lên cao một chút nếu là thẻ đặc biệt
-          marginTop: isSpecialCard ? '-4mm' : '0' 
+          // Đẩy chữ lên một chút nếu có dòng ngày tháng thai sản
+          marginTop: isMaternityCard ? '-4mm' : '0' 
         }}
       >
-        {/* 1. DÒNG THÔNG TIN THAI SẢN / CON NHỎ (CHỮ ĐỎ, MẢNH) */}
+        {/* 1. DÒNG THÔNG TIN THAI SẢN (LUÔN ĐỎ) */}
         {pregnancyInfo && (
           <div
             style={{
               fontSize: '8.5px',
-              fontWeight: 400, // Font Roboto mảnh
-              color: '#ff0000', // Luôn giữ màu đỏ nổi bật cho thông tin này
+              fontWeight: 500, // Đậm hơn chút cho dễ đọc
+              color: '#ff0000', // Đảm bảo màu đỏ theo yêu cầu
               marginBottom: '1.5mm',
               lineHeight: '1.2',
+              whiteSpace: 'nowrap'
             }}
           >
             <div>{pregnancyInfo.line1}</div>
@@ -103,50 +105,54 @@ const HorizontalCard = ({
           </div>
         )}
 
-        {/* 2. CHỨC VỤ (MÀU ĐEN - TỰ ĐỘNG XUỐNG DÒNG) */}
+        {/* 2. CHỨC VỤ */}
         <div
           style={{
             fontSize: '9px',
             fontWeight: 750,
             textTransform: 'uppercase',
-            width: '85%', // Giới hạn chiều rộng để ép xuống dòng
+            width: '85%',
             lineHeight: '1.2',
-            marginBottom: '2mm'
+            marginBottom: '2mm',
+            // Kế thừa màu từ cha (textColor)
           }}
         >
           {data.employee_position}
         </div>
 
-        {/* 3. HỌ TÊN (MÀU ĐEN) */}
+        {/* 3. HỌ TÊN */}
         <div
           style={{
             fontSize: '15px',
             fontWeight: 800,
             marginBottom: '1.5mm',
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
+            // Kế thừa màu từ cha
           }}
         >
           {data.employee_name}
         </div>
 
-        {/* 4. MÃ NHÂN VIÊN (MÀU ĐEN) */}
+        {/* 4. MÃ NHÂN VIÊN */}
         <div
           style={{
             fontSize: '13px',
             fontWeight: 600,
-            letterSpacing: '0.5px'
+            letterSpacing: '0.5px',
+            // Kế thừa màu từ cha
           }}
         >
           {data.employee_id}
         </div>
 
-        {/* 5. BỘ PHẬN (MÀU ĐEN) */}
+        {/* 5. BỘ PHẬN */}
         <div
           style={{
             marginTop: '1.5mm',
             fontSize: '9.5px',
             fontWeight: 600,
-            textTransform: 'uppercase'
+            textTransform: 'uppercase',
+            // Kế thừa màu từ cha
           }}
         >
           {data.employee_department}

@@ -44,7 +44,7 @@ const EmployeeTable = ({ dataSource, loading, onPrint, rowSelection }) => {
     {
       title: 'Lần In Cuối',
       dataIndex: 'last_printed_at',
-      width: 140,
+      width: 120,
       align: 'center',
       render: (date) => {
         if (!date) return <Tag color="default">Chưa in</Tag>;
@@ -74,7 +74,7 @@ const EmployeeTable = ({ dataSource, loading, onPrint, rowSelection }) => {
     { 
       title: 'Bộ Phận', 
       dataIndex: 'employee_department', 
-      width: 180, 
+      width: 150, 
       render: (dept) => <Tag color="geekblue">{dept}</Tag>,
       // Lọc theo bộ phận
       filters: generateFilters('employee_department'),
@@ -90,7 +90,7 @@ const EmployeeTable = ({ dataSource, loading, onPrint, rowSelection }) => {
     { 
       title: 'Loại NV', 
       dataIndex: 'employee_type', 
-      width: 120,
+      width: 90,
       // Lọc theo loại nhân viên (Staff/Worker...)
       filters: generateFilters('employee_type'),
       onFilter: (value, record) => record.employee_type === value,
@@ -118,7 +118,7 @@ const EmployeeTable = ({ dataSource, loading, onPrint, rowSelection }) => {
       align: 'center' 
     },
 
-    // --- 5. CHI TIẾT THAI SẢN ---
+    // --- 5. CHI TIẾT THAI SẢN (ĐÃ BỔ SUNG FILTER) ---
     {
       title: 'Chế Độ Thai Sản',
       dataIndex: 'maternity_type',
@@ -126,7 +126,10 @@ const EmployeeTable = ({ dataSource, loading, onPrint, rowSelection }) => {
       render: (type) => {
         if (!type || type === "Normal" || type === "") return "-";
         return <Tag icon={<HeartOutlined />} color="magenta">{type}</Tag>;
-      }
+      },
+      // [BỔ SUNG MỚI] - Tự động tạo bộ lọc dựa trên dữ liệu có sẵn
+      filters: generateFilters('maternity_type'),
+      onFilter: (value, record) => record.maternity_type === value,
     },
     { title: 'Bắt Đầu TS', dataIndex: 'maternity_begin', width: 110, align: 'center' },
     { title: 'Kết Thúc TS', dataIndex: 'maternity_end', width: 110, align: 'center' },

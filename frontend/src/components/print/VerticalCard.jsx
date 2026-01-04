@@ -22,9 +22,8 @@ const VerticalCard = ({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        // CHUYÊN NGHIỆP: Phông chữ hệ thống sắc nét hơn Arial
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        color: '#000',
+        color: '#000000', // Worker thẻ dọc luôn chữ đen
         boxSizing: 'border-box'
       }}
     >
@@ -35,8 +34,8 @@ const VerticalCard = ({
           width: '32mm',
           height: '40mm',
           position: 'relative',
-          borderRadius: '8px', // Bo nhẹ góc ảnh cho hiện đại
-          border: '0.5px solid rgba(0,0,0,0.1)',
+          borderRadius: '8px',
+          border: '0.5px solid rgba(0,0,0,0.2)', // Viền đen nhạt
           background: '#fff',
           overflow: 'hidden' 
         }}
@@ -57,7 +56,6 @@ const VerticalCard = ({
           <NoImagePlaceholder isDarkBg={false} />
         )}
 
-        {/* ===== CON DẤU ===== */}
         {showStamp && (
           <div
             style={{
@@ -65,7 +63,7 @@ const VerticalCard = ({
               bottom: '-2mm',
               right: '-3mm',
               zIndex: 10,
-              transform: 'scale(0.85) rotate(-5deg)' // Xoay nhẹ con dấu cho tự nhiên
+              transform: 'scale(0.85) rotate(-5deg)'
             }}
           >
             <CardStamp />
@@ -82,19 +80,18 @@ const VerticalCard = ({
           flexDirection: 'column',
           alignItems: 'center',
           textAlign: 'center',
-          padding: '2mm 4mm 0' // Tăng padding ngang để chữ không sát mép thẻ
+          padding: '2mm 4mm 0'
         }}
       >
-        {/* 1. CHỨC VỤ (Mảnh, cho phép xuống hàng) */}
+        {/* 1. CHỨC VỤ */}
         <div
           style={{
             fontSize: '11px',
             fontWeight: 400,
-            color: '#000', // Màu xám đậm giúp thẻ nhìn tinh tế hơn
             lineHeight: '1.2',
             textTransform: 'uppercase',
             letterSpacing: '0.5px',
-            minHeight: '22px', // Giữ khoảng cách cố định dù 1 hay 2 dòng
+            minHeight: '22px',
             display: 'flex',
             alignItems: 'center'
           }}
@@ -102,16 +99,14 @@ const VerticalCard = ({
           {data.employee_position}
         </div>
 
-        {/* 2. HỌ TÊN (Đậm, To, xuống dòng nếu quá dài) */}
+        {/* 2. HỌ TÊN */}
         <div
           style={{
             marginTop: '1mm',
             fontSize: '13px',
             fontWeight: 700,
-            color: '#000',
             lineHeight: '1.2',
-            wordBreak: 'break-word', // Xuống hàng khi gặp từ dài
-            overflowWrap: 'anywhere',
+            wordBreak: 'break-word',
             width: '100%',
             maxWidth: '48mm'
           }}
@@ -131,7 +126,7 @@ const VerticalCard = ({
           {data.employee_id}
         </div>
 
-        {/* 4. BỘ PHẬN (Màu xám nhẹ để phân cấp thông tin) */}
+        {/* 4. BỘ PHẬN */}
         <div
           style={{
             marginTop: '1.0mm',

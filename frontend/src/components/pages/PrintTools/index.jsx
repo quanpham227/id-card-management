@@ -40,7 +40,7 @@ const PrintToolsPage = () => {
       };
       await axios.post(`${API_URL}/api/print/log-tool`, payload);
       message.success(`Print log saved: ${currentTemplate.name}`);
-    } catch (error) {
+    } catch  {
       message.error("Failed to save print log.");
     }
   };

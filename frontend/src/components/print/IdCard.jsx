@@ -15,10 +15,25 @@ const IdCard = ({ data, bgOption = 1, showStamp = false }) => {
   const employeeImg = `${API_URL}/images/${data.employee_id}.png`;
   
   const maternityType = data.maternity_type || ''; 
-  const isMaternity = maternityType === 'Pregnancy Register' || maternityType === 'Has Baby';
 
-  // Hướng thẻ: Chỉ Worker (không bầu/con nhỏ) mới dùng khổ Dọc. Còn lại dùng khổ Ngang.
-  const isPortrait = data.employee_type === 'Worker' && !isMaternity;
+  // 1. ĐỊNH NGHĨA CÁC LOẠI THAI SẢN
+  const MATERNITY_TYPES = [
+    "Pregnancy (>7 months)", 
+    "Has Baby", 
+    "Pregnancy Register"
+  ];
+
+  // Kiểm tra xem nhân viên có thuộc diện thai sản không
+  const isMaternity = MATERNITY_TYPES.includes(maternityType);
+
+  // 2. XÁC ĐỊNH HƯỚNG THẺ (CẬP NHẬT TẠI ĐÂY)
+  // Danh sách các chức vụ dùng thẻ DỌC
+  const PORTRAIT_ROLES = ['Worker', 'Training'];
+
+  // Logic: 
+  // - Nếu chức vụ nằm trong danh sách ['Worker', 'Training']
+  // - VÀ Không thuộc diện thai sản (Thai sản luôn ưu tiên thẻ Ngang)
+  const isPortrait = PORTRAIT_ROLES.includes(data.employee_type) && !isMaternity;
 
   // --- HÀM HELPER XỬ LÝ NGÀY THÁNG ---
   const formatDateSafe = (dateStr) => {
@@ -27,41 +42,40 @@ const IdCard = ({ data, bgOption = 1, showStamp = false }) => {
     return d.isValid() ? d : null;
   };
 
-  // --- LOGIC TÍNH TOÁN THÔNG TIN THAI SẢN / CON NHỎ ---
+  // --- 3. XỬ LÝ DỮ LIỆU HIỂN THỊ THAI SẢN ---
   let maternityDisplay = null;
 
-  if (maternityType === 'Pregnancy Register') {
-    // THẺ BẦU: Dòng 2 cộng thêm 1 ngày
+  if (isMaternity) {
     const dateBegin = formatDateSafe(data.maternity_begin);
     const dateEnd = formatDateSafe(data.maternity_end);
 
-    maternityDisplay = {
-      line1: dateBegin ? `Ngày TB bầu: ${dateBegin.format('DD/MM/YYYY')}` : "Ngày TB bầu: ---",
-      line2: dateEnd ? `Bầu 7 tháng từ: ${dateEnd.add(1, 'day').format('DD/MM/YYYY')}` : "Bầu 7 tháng từ: ---",
-      isPregnancy: true
-    };
-  } else if (maternityType === 'Has Baby') {
-    // THẺ CON NHỎ: Lấy trực tiếp, không cộng ngày
-    const dateBegin = formatDateSafe(data.maternity_begin);
-    const dateEnd = formatDateSafe(data.maternity_end);
-
-    maternityDisplay = {
-      line1: dateBegin ? `Từ ngày: ${dateBegin.format('DD/MM/YYYY')}` : "Từ ngày: ---",
-      line2: dateEnd ? `Đến ngày: ${dateEnd.format('DD/MM/YYYY')}` : "Đến ngày: ---",
-      isPregnancy: false
-    };
+    if (maternityType === 'Has Baby') {
+      // Con nhỏ: Giữ nguyên ngày
+      maternityDisplay = {
+        line1: dateBegin ? `Từ ngày: ${dateBegin.format('DD/MM/YYYY')}` : "Từ ngày: ---",
+        line2: dateEnd ? `Đến ngày: ${dateEnd.format('DD/MM/YYYY')}` : "Đến ngày: ---",
+      };
+    } else {
+      // Bầu: Cộng 1 ngày vào ngày kết thúc
+      maternityDisplay = {
+        line1: dateBegin ? `Ngày thông báo mang thai: ${dateBegin.format('DD/MM/YYYY')}` : "Ngày TB bầu: ---",
+        line2: dateEnd ? `Ngày thai từ 7 tháng: ${dateEnd.add(1, 'day').format('DD/MM/YYYY')}` : "Bầu 7 tháng từ: ---",
+      };
+    }
   }
 
-  // --- CHỌN HÌNH NỀN ---
+  // --- 4. CHỌN HÌNH NỀN ---
   let bgUrl = '';
-  if (maternityType === 'Pregnancy Register') {
-    bgUrl = '/assets/bau-ngang.png';
-  } else if (maternityType === 'Has Baby') {
+  if (maternityType === 'Has Baby') {
     bgUrl = '/assets/baby-ngang.png';
+  } else if (isMaternity) {
+    // Các loại bầu còn lại
+    bgUrl = '/assets/bau-ngang.png';
   } else {
+    // Thẻ thường
     bgUrl = isPortrait 
-      ? '/assets/card-bg-vertical.png' 
-      : (bgOption === 1 ? '/assets/card-bg-horizontal.png' : '/assets/card-bg-horizontal-2.png');
+      ? '/assets/card-bg-vertical.png' // Nền dọc cho Worker/Training
+      : (bgOption === 1 ? '/assets/card-bg-horizontal.png' : '/assets/card-bg-horizontal-2.png'); // Nền ngang cho Staff/Manager
   }
 
   const bgImage = `url("${bgUrl}")`;
@@ -75,14 +89,16 @@ const IdCard = ({ data, bgOption = 1, showStamp = false }) => {
     imageError,
     setImageError,
     showStamp,
-    pregnancyInfo: maternityDisplay // Truyền object thông tin thai sản xuống
+    pregnancyInfo: maternityDisplay // Truyền thông tin thai sản (nếu có)
   };
 
   return (
     <div className="print-container">
       {isPortrait ? (
+        // Render thẻ dọc (Worker, Training)
         <VerticalCard {...commonProps} />
       ) : (
+        // Render thẻ ngang (Staff, Manager, Thai sản)
         <HorizontalCard {...commonProps} />
       )}
 
