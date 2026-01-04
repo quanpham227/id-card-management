@@ -1,0 +1,68 @@
+# ==========================================
+# 1. BACKEND (Python/FastAPI)
+# ==========================================
+# Caches và tệp thực thi
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Database (Cực kỳ quan trọng)
+# Chặn tất cả file sqlite và tệp tạm của nó
+*.db
+*.db-shm
+*.db-wal
+sql_app.db
+
+# Ảnh nhân viên & Dữ liệu nhạy cảm
+# Bạn cần giữ folder nhưng chặn file bên trong để code không lỗi
+backend/static/images/*
+!backend/static/images/.gitkeep
+backend/backups/*
+!backend/backups/.gitkeep
+
+# Scripts hỗ trợ (Chỉ dùng khi phát triển)
+backend/create_super_admin.py
+backend/migrate_json_to_db.py
+backend/backup_script.py
+
+# Logs
+backend/system.log
+*.log
+
+# ==========================================
+# 2. FRONTEND (React/Vite/Node)
+# ==========================================
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/build/
+
+# Môi trường (Environment variables)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+frontend/.env.production
+frontend/.env.development
+
+# ==========================================
+# 3. DOCKER
+# ==========================================
+.dockerignore
+# Nếu bạn không muốn đẩy dữ liệu volume của docker lên
+docker_data/
+
+# ==========================================
+# 4. OS & IDE (Hệ điều hành và Công cụ)
+# ==========================================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp

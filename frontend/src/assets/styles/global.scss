@@ -1,0 +1,29 @@
+/* src/assets/styles/global.scss */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #f0f2f5;
+}
+
+/* Quan trọng: Bắt buộc thẻ root phải full màn hình */
+#root {
+  width: 100%;
+  height: 100%;
+  display: block; /* Đảm bảo không bị dính display flex mặc định */
+}
+
+.flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}

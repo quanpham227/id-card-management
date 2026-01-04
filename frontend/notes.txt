@@ -1,0 +1,1 @@
+Remove-Item -Recurse -Force dist -ErrorAction SilentlyContinue; Remove-Item -Recurse -Force node_modules/.vite -ErrorAction SilentlyContinue; npm run build

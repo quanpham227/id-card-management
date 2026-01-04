@@ -1,0 +1,80 @@
+# ==========================================
+# 1. DATABASE & TỆP TẠM (BẮT BUỘC)
+# ==========================================
+# Chặn các file dữ liệu SQLite (Giữ database trống trên Git để Deploy cho sạch)
+*.db
+*.sqlite3
+sql_app.db
+
+# Chặn file tạm của SQLite
+*.db-shm
+*.db-wal
+sql_app.db-shm
+sql_app.db-wal
+
+# ==========================================
+# 2. PHÂN QUYỀN & SCRIPTS NHẠY CẢM (BACKEND)
+# ==========================================
+create_super_admin.py
+migrate_json_to_db.py
+backup_script.py
+.env
+.env.*
+!.env.example
+
+# ==========================================
+# 3. PYTHON CACHES, VIRTUAL ENVS & LOGS
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+# Môi trường ảo Python
+venv/
+.venv/
+env/
+# Logs
+*.log
+system.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==========================================
+# 4. FRONTEND (NODE.JS) & BUILD
+# ==========================================
+node_modules/
+dist/
+build/
+dist-ssr/
+out/
+.vercel
+.netlify
+*.local
+
+# ==========================================
+# 5. EDITOR, OS & CẤU HÌNH HỆ THỐNG
+# ==========================================
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Hệ điều hành
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==========================================
+# 6. FILE ẢNH NHÂN VIÊN (QUAN TRỌNG)
+# ==========================================
+# Chặn thư mục chứa ảnh thực tế của nhân viên để tránh lộ quyền riêng tư lên GitHub
+# Giả sử bạn lưu ảnh trong thư mục images hoặc uploads
+backend/images/*.png
+backend/images/*.jpg
+backend/images/*.jpeg
