@@ -1,10 +1,8 @@
 // src/pages/Admin/UserManager.jsx
-import React, { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, Select, Tag, Popconfirm, message, Card, Avatar } from 'antd';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Table, Button, Modal, Form, Input, Select, Tag, Popconfirm, message, Card, Avatar, Tooltip } from 'antd';
 import { UserAddOutlined, DeleteOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
 import axiosClient from '../../../api/axiosClient';
-
-// 1. IMPORT FILE CHECK QUYỀN
 import { PERMISSIONS } from '../../utils/permissions'; 
 
 const UserManager = () => {
@@ -14,24 +12,23 @@ const UserManager = () => {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
 
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-
-  // 2. XÁC ĐỊNH QUYỀN CỦA USER ĐANG ĐĂNG NHẬP
-  // IS_ADMIN bao gồm: Admin, Manager, IT (như đã định nghĩa ở permissions.js)
+  // Get current session user
+  const currentUser = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
+  
+  // Define administrative permission
   const canEdit = PERMISSIONS.IS_ADMIN(currentUser.role);
 
-  // --- HÀM FETCH DATA ---
+  // --- FETCH DATA ---
   const fetchData = async () => {
     setLoading(true);
     try {
       const res = await axiosClient.get('/api/users/');
-      if (Array.isArray(res.data)) setUsers(res.data);
-      else if (res.data && Array.isArray(res.data.data)) setUsers(res.data.data);
-      else if (res.data && Array.isArray(res.data.users)) setUsers(res.data.users);
-      else setUsers([]);
+      // Flexible data extraction based on backend response structure
+      const data = res.data?.users || res.data?.data || res.data;
+      setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
-      message.error("Không thể tải danh sách người dùng");
+      message.error("Could not load user list");
       setUsers([]);
     } finally { setLoading(false); }
   };
@@ -42,78 +39,93 @@ const UserManager = () => {
     setSubmitting(true);
     try {
       await axiosClient.post('/api/users/', values);
-      message.success("Tạo tài khoản thành công!");
+      message.success("Account created successfully!");
       setIsModalOpen(false);
       form.resetFields();
       fetchData();
     } catch (error) {
-      const msg = error.response?.data?.detail || "Lỗi khi tạo tài khoản";
+      const msg = error.response?.data?.detail || "Error creating account";
       message.error(msg);
     } finally { setSubmitting(false); }
   };
 
   const handleDelete = async (id) => {
-      try {
-          await axiosClient.delete(`/api/users/${id}`);
-          message.success("Đã xóa tài khoản");
-          fetchData();
-      } catch  {
-          message.error("Xóa thất bại");
-      }
+    try {
+      await axiosClient.delete(`/api/users/${id}`);
+      message.success("Account deleted");
+      fetchData();
+    } catch {
+      message.error("Delete failed");
+    }
   }
 
-  // --- CẤU HÌNH CỘT BẢNG ---
+  // --- TABLE COLUMN CONFIG ---
   const columns = [
     { 
-        title: 'Avatar', 
+        title: 'User', 
         key: 'avatar',
         width: 80,
         align: 'center',
-        render: () => <Avatar icon={<UserOutlined />} style={{backgroundColor: '#87d068'}}/>
+        render: () => <Avatar icon={<UserOutlined />} style={{backgroundColor: '#1890ff'}}/>
     },
     { 
         title: 'Full Name', 
         dataIndex: 'full_name', 
         key: 'full_name',
-        render: (text) => <span style={{fontWeight: 500}}>{text}</span>
+        render: (text) => <span style={{fontWeight: 600}}>{text}</span>
     },
     { 
         title: 'Username', 
         dataIndex: 'username', 
         key: 'username',
-        render: (text) => <Tag>{text}</Tag>
+        render: (text) => <Tag color="blue">{text}</Tag>
     },
     { 
       title: 'Role', 
       dataIndex: 'role', 
       render: (role) => {
         let color = 'default';
-        let label = 'USER';
-        const r = role ? role.toLowerCase() : '';
+        const r = role ? role.toUpperCase() : 'USER';
 
-        if (r === 'admin') { color = 'red'; label = 'SYSTEM ADMIN'; } 
-        else if (r === 'manager' || r === 'it') { color = 'gold'; label = 'MANAGER'; } 
-        else if (r === 'hr') { color = 'purple'; label = 'HR'; } 
-        else if (r === 'staff') { color = 'blue'; label = 'STAFF'; }
+        if (r === 'ADMIN') color = 'red';
+        else if (r === 'MANAGER' || r === 'IT') color = 'gold';
+        else if (r === 'HR') color = 'purple';
+        else if (r === 'STAFF') color = 'cyan';
 
-        return <Tag color={color}>{label}</Tag>;
+        return <Tag color={color} style={{fontWeight: 'bold'}}>{r}</Tag>;
       } 
     },
-    // 3. ẨN CỘT ACTION NẾU KHÔNG CÓ QUYỀN
-    // Logic: Nếu canEdit là true thì thêm cột Action vào, ngược lại thì không thêm gì cả
+    // Only show Action column if the logged-in user is an Admin/Manager/IT
     ...(canEdit ? [{
       title: 'Action',
       align: 'center',
       render: (_, record) => {
         const isSelf = record.username === currentUser.username;
+        // PROTECT ROOT ACCOUNT: Prevents deletion of the 'admin' user
+        const isRootAccount = record.username === 'admin'; 
+        
+        const cannotDelete = isSelf || isRootAccount;
+
         return (
-            <Popconfirm 
-              title="Xóa người dùng này?" 
-              onConfirm={() => handleDelete(record.id)}
-              disabled={isSelf}
-            >
-              <Button type="text" danger icon={<DeleteOutlined />} disabled={isSelf} />
-            </Popconfirm>
+          <Tooltip title={isRootAccount ? "Cannot delete Root Admin" : isSelf ? "You cannot delete yourself" : ""}>
+            <span>
+              <Popconfirm 
+                title={`Delete user "${record.username}"?`}
+                description="This action cannot be undone."
+                onConfirm={() => handleDelete(record.id)}
+                disabled={cannotDelete}
+                okText="Yes"
+                cancelText="No"
+              >
+                <Button 
+                    type="text" 
+                    danger 
+                    icon={<DeleteOutlined />} 
+                    disabled={cannotDelete} 
+                />
+              </Popconfirm>
+            </span>
+          </Tooltip>
         )
       }
     }] : [])
@@ -122,47 +134,51 @@ const UserManager = () => {
   return (
     <Card
         variant="borderless" 
-        title={<span><SettingOutlined /> Quản lý tài khoản (System Users)</span>} 
-        style={{borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.1)'}}
-        // 4. ẨN NÚT ADD USER NẾU KHÔNG CÓ QUYỀN
+        title={<span><SettingOutlined /> System Account Management</span>} 
+        style={{borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.05)'}}
         extra={
             canEdit && (
                 <Button type="primary" icon={<UserAddOutlined />} onClick={() => setIsModalOpen(true)}>
-                    Add User
+                    Add New User
                 </Button>
             )
         }
     >
       <Table 
-        dataSource={Array.isArray(users) ? users : []} 
+        dataSource={users} 
         columns={columns} 
         rowKey="id" 
         loading={loading} 
         pagination={{ pageSize: 10 }}
       />
       
-      {/* Modal chỉ render nhưng người dùng HR/Staff sẽ không bao giờ mở được vì không thấy nút */}
       <Modal 
-        title="Tạo tài khoản mới" 
+        title="Create New Account" 
         open={isModalOpen} 
         onOk={() => form.submit()} 
         onCancel={() => setIsModalOpen(false)}
         confirmLoading={submitting}
-        okText="Tạo mới"
-        cancelText="Hủy"
+        okText="Create Account"
+        cancelText="Cancel"
       >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item name="full_name" label="Tên hiển thị" rules={[{required: true}]}><Input placeholder="Ví dụ: Nguyễn Văn A" /></Form.Item>
-          <Form.Item name="username" label="Tên đăng nhập" rules={[{required: true}]}><Input placeholder="admin, staff..." /></Form.Item>
-          <Form.Item name="password" label="Mật khẩu" rules={[{required: true}]}><Input.Password placeholder="Nhập mật khẩu" /></Form.Item>
+          <Form.Item name="full_name" label="Full Name" rules={[{required: true, message: 'Please enter full name'}]}>
+            <Input placeholder="e.g., John Doe" />
+          </Form.Item>
+          <Form.Item name="username" label="Username" rules={[{required: true, message: 'Please enter username'}]}>
+            <Input placeholder="e.g., john.staff" />
+          </Form.Item>
+          <Form.Item name="password" label="Password" rules={[{required: true, message: 'Please enter password'}]}>
+            <Input.Password placeholder="Enter secure password" />
+          </Form.Item>
           
-          <Form.Item name="role" label="Phân quyền (Role)" rules={[{required: true}]} initialValue="Staff">
+          <Form.Item name="role" label="System Role" rules={[{required: true}]} initialValue="Staff">
             <Select
                 options={[
-                    { value: 'Admin', label: 'Admin (Quản trị hệ thống)' },
+                    { value: 'Admin', label: 'Admin (Full System Control)' },
                     { value: 'Manager', label: 'Manager' },
-                    { value: 'HR', label: 'HR (Quản lý Nhân sự)' },
-                    { value: 'Staff', label: 'Staff (Nhân viên thường)' },
+                    { value: 'HR', label: 'HR (Personnel Management)' },
+                    { value: 'Staff', label: 'Staff (Read-only / Operation)' },
                 ]}
             />
           </Form.Item>

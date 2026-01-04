@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { 
-  Upload, message, Card, Typography, Alert, Result, 
-  Tag, Flex, List, Avatar, Badge, Row, Col 
+  Upload, message, Card, Typography, Alert, 
+  Tag, Flex, List, Avatar, Badge, Row, Col, Tooltip 
 } from 'antd';
 import { 
   InboxOutlined, LockOutlined, CloudUploadOutlined, 
@@ -9,7 +9,7 @@ import {
   FileImageOutlined 
 } from '@ant-design/icons';
 
-// 1. [QUAN TRỌNG] THÊM DÒNG NÀY ĐỂ IMPORT LOGIC QUYỀN MỚI
+// IMPORT CENTRALIZED PERMISSIONS
 import { PERMISSIONS } from '../../utils/permissions';
 
 const { Title, Text, Paragraph } = Typography;
@@ -22,14 +22,12 @@ const UploadPage = () => {
   // --- 1. AUTH & CONFIG ---
   const user = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
   
-  // 2. [ĐÃ SỬA] THAY ĐỔI LOGIC CHECK QUYỀN TẠI ĐÂY
-  // Logic cũ: const canUpload = ['admin', 'it', 'hr'].includes(role); -> Thiếu Manager
-  // Logic mới: Dùng CAN_OPERATE (Bao gồm Admin, Manager, HR)
+  // Kiểm tra quyền (Admin, Manager, HR -> canUpload = true)
   const canUpload = PERMISSIONS.CAN_OPERATE(user.role);
   
   const API_URL = import.meta.env?.VITE_API_URL || 'http://localhost:8000';
 
-  // --- 2. UPLOAD HANDLERS ---
+  // --- 2. UPLOAD PROPS CONFIG ---
   const uploadProps = useMemo(() => ({
     name: 'files', 
     multiple: true,
@@ -39,22 +37,22 @@ const UploadPage = () => {
         'X-User-Role': user.role 
     },
     accept: '.jpg,.jpeg,.png', 
+    // Vô hiệu hóa hành động nếu không có quyền
     disabled: !canUpload || uploading,
     fileList,
     showUploadList: false, 
 
     beforeUpload(file) {
       if (!canUpload) {
-        message.error("Bạn không có thẩm quyền!");
+        message.error("Access denied: You do not have permission to upload.");
         return Upload.LIST_IGNORE;
       }
       
       const isLt5M = file.size / 1024 / 1024 < 5;
       if (!isLt5M) {
-        message.error(`${file.name} quá nặng (> 5MB). Đã bỏ qua.`);
+        message.error(`${file.name} is too large (> 5MB). File skipped.`);
         return Upload.LIST_IGNORE; 
       }
-      
       return true;
     },
 
@@ -62,7 +60,7 @@ const UploadPage = () => {
       const { status } = info.file;
       
       let newFileList = [...info.fileList];
-      newFileList = newFileList.slice(-5);
+      newFileList = newFileList.slice(-5); // Giữ 5 hoạt động gần nhất
       setFileList(newFileList);
 
       if (status === 'uploading') {
@@ -71,53 +69,52 @@ const UploadPage = () => {
       
       if (status === 'done') {
         setUploading(false);
-        message.success(`${info.file.name}: Tải lên thành công.`);
+        message.success(`${info.file.name}: Uploaded successfully.`);
       } else if (status === 'error') {
         setUploading(false);
-        const errorMsg = info.file.response?.detail || "Lỗi tải lên.";
+        const errorMsg = info.file.response?.detail || "Upload failed.";
         message.error(`${info.file.name}: ${errorMsg}`);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [canUpload, uploading, fileList, user.role, API_URL]);
 
   return (
     <div style={{ padding: '16px', maxWidth: 1200, margin: '0 auto' }}>
       
       {/* HEADER SECTION */}
-      <Flex justify="space-between" align="flex-end" style={{ marginBottom: 24 }}>
-        <div>
-          <Flex align="center" gap={12}>
-            <Avatar 
-               icon={<CloudUploadOutlined />} 
-               style={{ backgroundColor: '#1890ff' }} 
-               size="large" 
-            />
-            <Title level={2} style={{ margin: 0 }}>Photo Management</Title>
-          </Flex>
-          
-        </div>
-        <Tag color="blue">Account: {user.username || 'Unknown'}</Tag>
+      <Flex justify="space-between" align="center" style={{ marginBottom: 24 }}>
+        <Flex align="center" gap={12}>
+          <Avatar 
+             icon={<CloudUploadOutlined />} 
+             style={{ backgroundColor: canUpload ? '#1890ff' : '#8c8c8c' }} 
+             size="large" 
+          />
+          <Title level={2} style={{ margin: 0 }}>Photo Management</Title>
+        </Flex>
+        <Tag color={canUpload ? "blue" : "default"} style={{ padding: '4px 12px', borderRadius: 4 }}>
+          Role: {user.role?.toUpperCase() || 'GUEST'}
+        </Tag>
       </Flex>
 
       <Row gutter={[24, 24]}>
         <Col xs={24} lg={16}>
-          {/* CẢNH BÁO QUYỀN HẠN */}
+          {/* PERMISSION STATUS ALERT */}
           {!canUpload ? (
             <Alert
-              message="Access Restricted" 
-              description="Tài khoản Staff chỉ có quyền xem dữ liệu. Vui lòng liên hệ IT để cấp quyền upload."
-              type="error"
+              message="View-Only Mode" 
+              description="Your account (Staff) does not have permission to upload photos. You may only view recent activity."
+              type="warning"
               showIcon
               icon={<LockOutlined />}
               style={{ marginBottom: 24, borderRadius: 12 }}
             />
           ) : (
             <Alert
+              message="Upload Instructions"
               description={
                 <Paragraph style={{ marginBottom: 0 }}>
-                  Use the <Text strong>Employee ID </Text> as the file name(VD: <Text code>18100012.png</Text>). 
-                  Files larger than 5MB will be automatically rejected.
+                  Rename files to match <Text strong>Employee ID </Text> (e.g., <Text code>18100012.png</Text>). 
+                  Max size: 5MB. Supports JPG/PNG.
                 </Paragraph>
               }
               type="info"
@@ -126,37 +123,52 @@ const UploadPage = () => {
             />
           )}
 
-          <Card bordered={false} style={{ borderRadius: 16, boxShadow: '0 8px 24px rgba(0,0,0,0.05)' }}>
-            {canUpload ? (
-              <Dragger {...uploadProps} style={{ borderRadius: 12, padding: 32, background: '#fafafa' }}>
+          {/* MAIN UPLOAD CARD */}
+          <Card variant="outlined" style={{ borderRadius: 16, boxShadow: '0 8px 24px rgba(0,0,0,0.05)' }}>
+            <Tooltip title={!canUpload ? "You don't have permission to upload" : ""}>
+              <Dragger 
+                {...uploadProps} 
+                style={{ 
+                  borderRadius: 12, 
+                  padding: 32, 
+                  background: canUpload ? '#fafafa' : '#f5f5f5',
+                  cursor: canUpload ? 'pointer' : 'not-allowed'
+                }}
+              >
                 <p className="ant-upload-drag-icon">
-                  <InboxOutlined style={{ color: uploading ? '#40a9ff' : '#1890ff' }} />
+                  {canUpload ? (
+                    <InboxOutlined style={{ color: uploading ? '#40a9ff' : '#1890ff' }} />
+                  ) : (
+                    <LockOutlined style={{ color: '#ff4d4f' }} />
+                  )}
                 </p>
-                <Title level={4}>Kéo thả ảnh nhân viên vào đây</Title>
+                <Title level={4}>
+                  {canUpload ? "Click or drag photos to this area to upload" : "Upload Feature Locked"}
+                </Title>
                 <Paragraph type="secondary">
-                  Hỗ trợ tải nhiều file cùng lúc. Chỉ chấp nhận file ảnh dưới 5MB.
+                  {canUpload 
+                    ? "Support for a single or bulk upload. Strict filename policy applied."
+                    : "Please contact HR Manager or IT Admin to request upload access."}
                 </Paragraph>
               </Dragger>
-            ) : (
-              <Result
-                status="403"
-                title="403 Unauthorized"
-                subTitle="Xin lỗi, bạn không có quyền thực hiện thao tác này."
-              />
-            )}
+            </Tooltip>
           </Card>
         </Col>
 
         <Col xs={24} lg={8}>
-          {/* LOG TẢI LÊN GẦN ĐÂY */}
-          <Card variant="borderless"
-            title={<Flex justify="space-between"><span>Hoạt động gần đây</span><Badge count={fileList.length} showZero color={uploading ? 'blue' : '#d9d9d9'} /></Flex>}
-            
+          {/* RECENT ACTIVITY LOG - STAFF CAN STILL SEE THIS */}
+          <Card 
+            title={
+              <Flex justify="space-between" align="center">
+                <span>Recent Upload Log</span>
+                <Badge count={fileList.length} showZero color={canUpload ? 'blue' : '#d9d9d9'} />
+              </Flex>
+            }
             style={{ borderRadius: 16, height: '100%', boxShadow: '0 8px 24px rgba(0,0,0,0.05)' }}
           >
             <List
               dataSource={fileList}
-              locale={{ emptyText: 'Chưa có file nào được tải lên' }}
+              locale={{ emptyText: 'No recent uploads found' }}
               renderItem={(file) => (
                 <List.Item>
                   <List.Item.Meta
@@ -165,13 +177,13 @@ const UploadPage = () => {
                       <CheckCircleFilled style={{ color: '#52c41a', fontSize: 24 }} /> : 
                       file.status === 'error' ? 
                       <CloseCircleFilled style={{ color: '#ff4d4f', fontSize: 24 }} /> :
-                      <Avatar icon={<FileImageOutlined />} style={{ backgroundColor: '#1890ff' }} />
+                      <Avatar icon={<FileImageOutlined />} style={{ backgroundColor: '#bfbfbf' }} />
                     }
                     title={<Text ellipsis style={{ maxWidth: 180 }}>{file.name}</Text>}
                     description={
-                        file.status === 'done' ? <Text type="success" style={{fontSize: 12}}>Thành công</Text> : 
-                        file.status === 'uploading' ? <Text type="warning" style={{fontSize: 12}}>Đang xử lý...</Text> : 
-                        <Text type="danger" style={{fontSize: 12}}>Thất bại</Text>
+                      <Text type={file.status === 'done' ? "success" : file.status === 'error' ? "danger" : "secondary"} style={{ fontSize: 12 }}>
+                        {file.status?.toUpperCase() || 'PENDING'}
+                      </Text>
                     }
                   />
                 </List.Item>
