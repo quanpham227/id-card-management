@@ -13,7 +13,7 @@ export const EmployeeProvider = ({ children }) => {
 
     setLoading(true);
     try {
-      const response = await axiosClient.get('/api/employees');
+      const response = await axiosClient.get('/employees');
       const data = Array.isArray(response.data) ? response.data : (response.data.data || []);
       setEmployees(data);
       setIsLoaded(true);

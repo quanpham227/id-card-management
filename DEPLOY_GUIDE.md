@@ -173,3 +173,5 @@ ls -lh data_storage/sql_app.db
 
 # 5. Khởi động lại hệ thống
 sudo docker compose up -d
+
+

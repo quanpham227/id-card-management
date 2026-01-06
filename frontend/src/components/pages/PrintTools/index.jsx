@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { Card, Select, InputNumber, Button, Typography, Flex, Row, Col, Alert, Radio, message, Tooltip } from 'antd';
 import { PrinterOutlined, AppstoreAddOutlined, RotateRightOutlined, LockOutlined } from '@ant-design/icons';
 import { useReactToPrint } from 'react-to-print';
-import axios from 'axios';
+import axiosClient from '../../../api/axiosClient.js';
 import { CARD_TEMPLATES } from '../../../constants/cardTemplates.js';
 import BatchCard from '../../../components/print/BatchCard.jsx';
 
@@ -28,8 +28,13 @@ const PrintToolsPage = () => {
   // --- SAVE PRINT HISTORY ---
   const handleSavePrintHistory = async () => {
     if (!canPrint) return; // Bảo vệ thêm lớp logic
+    // 2. [THÊM MỚI] Nếu là mặt sau (Back Side) thì thoát luôn, không lưu log
+    if (isBackSide) {
+        
+        return; 
+    }
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const API_URL = import.meta.env.VITE_API_URL || '';
       const payload = {
         card_type: currentTemplate.name,
         serial_number: isBackSide ? "N/A" : cardNumber.toString(),
@@ -38,7 +43,7 @@ const PrintToolsPage = () => {
         reason: "tools", 
         printed_by: user.username || "System" 
       };
-      await axios.post(`${API_URL}/api/print/log-tool`, payload);
+      await axiosClient.post('/print/log-tool', payload);
       message.success(`Print log saved: ${currentTemplate.name}`);
     } catch  {
       message.error("Failed to save print log.");

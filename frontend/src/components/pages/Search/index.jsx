@@ -15,7 +15,7 @@ import { useEmployees } from '../../../context/useEmployees';
 const { Title, Text } = Typography;
 
 const SearchPage = () => {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  const API_URL = import.meta.env.VITE_API_URL || '';
   const { employees } = useEmployees();
 
   const [searchId, setSearchId] = useState('');
@@ -68,7 +68,7 @@ const SearchPage = () => {
     if (!imageUrl || imageError) return;
     setDownloading(true);
     try {
-      const response = await axiosClient.get(`/api/download/${selectedEmp?.employee_id || searchId}`, {
+      const response = await axiosClient.get(`/download/${selectedEmp?.employee_id || searchId}`, {
         responseType: 'blob',
       });
       const blob = new Blob([response.data], { type: 'image/png' });
@@ -77,7 +77,7 @@ const SearchPage = () => {
       link.download = `${selectedEmp?.employee_id || searchId}.png`;
       link.click();
       message.success(`Đã tải xuống: ${link.download}`);
-    } catch (error) {
+    } catch  {
       message.error('Lỗi tải ảnh từ Server.');
     } finally {
       setDownloading(false);

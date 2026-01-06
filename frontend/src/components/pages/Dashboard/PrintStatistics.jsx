@@ -27,7 +27,7 @@ const PrintStatistics = () => {
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const res = await axiosClient.get('/api/print/stats');
+      const res = await axiosClient.get('/print/stats');
       const result = res.data;
 
       if (Array.isArray(result)) {

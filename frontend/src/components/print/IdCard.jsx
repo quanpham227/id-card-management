@@ -11,8 +11,10 @@ const IdCard = ({ data, bgOption = 1, showStamp = false }) => {
   
   if (!data) return null;
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-  const employeeImg = `${API_URL}/images/${data.employee_id}.png`;
+  const API_URL = import.meta.env.VITE_API_URL || '';
+  const employeeImg = API_URL 
+  ? `${API_URL}/images/${data.employee_id}.png` 
+  : `/images/${data.employee_id}.png`;
   
   const maternityType = data.maternity_type || ''; 
 

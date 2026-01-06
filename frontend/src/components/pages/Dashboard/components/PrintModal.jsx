@@ -75,7 +75,7 @@ const handlePrint = async () => {
         printed_by: JSON.parse(localStorage.getItem('user') || '{}').username || "Admin"
       };
 
-      await axiosClient.post('/api/print/log', payload);
+      await axiosClient.post('/print/log', payload);
       message.success(`Đã lưu log: ${calculatedReason}`);
 
       setTimeout(() => {

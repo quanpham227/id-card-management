@@ -12,18 +12,18 @@ const UserManager = () => {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
 
-  // Get current session user
+  // 1. Get current session user
   const currentUser = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
   
-  // Define administrative permission
+  // 2. Define administrative permission
   const canEdit = PERMISSIONS.IS_ADMIN(currentUser.role);
 
   // --- FETCH DATA ---
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await axiosClient.get('/api/users/');
-      // Flexible data extraction based on backend response structure
+      const res = await axiosClient.get('/users');
+      // Flexible data extraction
       const data = res.data?.users || res.data?.data || res.data;
       setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -35,23 +35,51 @@ const UserManager = () => {
 
   useEffect(() => { fetchData(); }, []);
 
+  // --- HANDLE CREATE (WITH DUPLICATE CHECK) ---
   const handleCreate = async (values) => {
+    // A. CLIENT-SIDE VALIDATION: Check for duplicate username immediately
+    const isUsernameDuplicate = users.some(
+        u => u.username.toLowerCase() === values.username.trim().toLowerCase()
+    );
+
+    if (isUsernameDuplicate) {
+        // Show error directly on the input field
+        form.setFields([
+            {
+                name: 'username',
+                errors: ['This username is already taken!'],
+            },
+        ]);
+        message.error("Username already exists in the system.");
+        return; // Stop execution, do not call API
+    }
+
+    // B. SERVER-SIDE EXECUTION
     setSubmitting(true);
     try {
-      await axiosClient.post('/api/users/', values);
+      await axiosClient.post('/users', values);
       message.success("Account created successfully!");
       setIsModalOpen(false);
       form.resetFields();
       fetchData();
     } catch (error) {
       const msg = error.response?.data?.detail || "Error creating account";
-      message.error(msg);
+      
+      // If server returns a specific duplicate error (backup check)
+      if (msg.toLowerCase().includes('exist') || msg.toLowerCase().includes('duplicate')) {
+        form.setFields([
+            { name: 'username', errors: ['Username taken (Server check)'] }
+        ]);
+      } else {
+        message.error(msg);
+      }
     } finally { setSubmitting(false); }
   };
 
+  // --- HANDLE DELETE ---
   const handleDelete = async (id) => {
     try {
-      await axiosClient.delete(`/api/users/${id}`);
+      await axiosClient.delete(`/users/${id}`);
       message.success("Account deleted");
       fetchData();
     } catch {
@@ -165,11 +193,14 @@ const UserManager = () => {
           <Form.Item name="full_name" label="Full Name" rules={[{required: true, message: 'Please enter full name'}]}>
             <Input placeholder="e.g., John Doe" />
           </Form.Item>
+          
           <Form.Item name="username" label="Username" rules={[{required: true, message: 'Please enter username'}]}>
             <Input placeholder="e.g., john.staff" />
           </Form.Item>
+          
           <Form.Item name="password" label="Password" rules={[{required: true, message: 'Please enter password'}]}>
-            <Input.Password placeholder="Enter secure password" />
+            {/* Added autoComplete="new-password" to prevent browser warnings */}
+            <Input.Password placeholder="Enter secure password" autoComplete="new-password" />
           </Form.Item>
           
           <Form.Item name="role" label="System Role" rules={[{required: true}]} initialValue="Staff">

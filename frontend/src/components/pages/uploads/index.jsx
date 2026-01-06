@@ -25,13 +25,12 @@ const UploadPage = () => {
   // Kiểm tra quyền (Admin, Manager, HR -> canUpload = true)
   const canUpload = PERMISSIONS.CAN_OPERATE(user.role);
   
-  const API_URL = import.meta.env?.VITE_API_URL || 'http://localhost:8000';
-
+const API_URL = import.meta.env.VITE_API_URL || '';
   // --- 2. UPLOAD PROPS CONFIG ---
   const uploadProps = useMemo(() => ({
     name: 'files', 
     multiple: true,
-    action: `${API_URL}/api/upload`,
+    action: API_URL ? `${API_URL}/api/upload` : '/api/upload',
     headers: { 
         'Authorization': `Bearer ${localStorage.getItem('token')}`, 
         'X-User-Role': user.role 

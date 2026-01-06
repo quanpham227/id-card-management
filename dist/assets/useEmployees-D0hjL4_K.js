@@ -1,0 +1,1 @@
+import{r as o}from"./vendor-C8lAA81b.js";import{E as t}from"./index-JBMyroTg.js";const m=()=>{const e=o.useContext(t);if(!e)throw new Error("useEmployees must be used within an EmployeeProvider");return e};export{m as u};

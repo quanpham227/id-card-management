@@ -1,8 +1,7 @@
 import { notification } from 'antd';
 
 // Lấy URL từ biến môi trường, fallback về localhost nếu không tìm thấy
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
+const API_URL = import.meta.env.VITE_API_URL || '';
 /**
  * Hàm gửi log in ấn lên Server
  * @param {Array} employeesList - Danh sách nhân viên đang được in
@@ -21,7 +20,7 @@ export const logPrintHistory = async (employeesList) => {
 
   try {
     // 2. Gọi API (Sử dụng fetch native để giảm phụ thuộc thư viện ngoài)
-    const response = await fetch(`${API_URL}/api/log-print`, {
+    const response = await fetch(`${API_URL}/log-print`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -1,77 +1,93 @@
-import os
-import json
 import logging
-from typing import List
-from fastapi import APIRouter, HTTPException
-from fastapi import Depends
+from datetime import datetime
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
+from sqlalchemy import func, case, or_
+
+# Import nội bộ
 from app.database import get_db
 from app import models, schemas
-from app.schemas import PrintRequest
-from datetime import datetime
-from sqlalchemy import func, case
-from app import models
-
-
-# Import từ các module khác trong app
-from app.schemas import PrintLogRequest
 from app.config import LOG_FILE
 
 # Khởi tạo Router và Logger
 router = APIRouter(prefix="/api/print", tags=["Print & Stats"])
 logger = logging.getLogger(__name__)
 
-
-# 1. API Ghi nhận in (Gửi từ BulkPrintModal.jsx)
+# ============================================================
+# 1. API GHI NHẬN IN (Batch Log)
+# ============================================================
 @router.post("/log")
 def log_print(request: schemas.PrintRequest, db: Session = Depends(get_db)):
     try:
         count = 0
         for item in request.employees:
-            # Lấy reason từ chính object nhân viên gửi lên, nếu không có thì lấy reason mặc định của request
+            # Ưu tiên lý do của từng nhân viên, nếu không có thì lấy lý do chung
             final_reason = item.reason if item.reason else request.reason
+            
             new_log = models.PrintLog(
                 employee_id=item.employee_id,
                 employee_name=item.employee_name,
                 department=item.department,
-                reason=final_reason,
+                reason=final_reason, # Lưu ý: Frontend cần gửi đúng format (vd: 'pregnancy', 'normal')
                 printed_by=request.printed_by,
                 printed_at=datetime.now()
             )
             db.add(new_log)
             count += 1
+        
         db.commit()
         return {"status": "success", "message": f"Logged {count} prints"}
+    
     except Exception as e:
         db.rollback()
         logger.error(f"Lỗi lưu log in: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# app/routers/print.py
-from sqlalchemy import func, case 
-
+# ============================================================
+# 2. API THỐNG KÊ (Đã sửa logic so sánh chuỗi)
+# ============================================================
 @router.get("/stats")
 def get_print_stats(db: Session = Depends(get_db)):
     try:
-        # 1. Truy vấn thống kê từ bảng PrintLog (Thẻ nhân viên)
-        # Sử dụng từ khóa Tiếng Anh để lọc chính xác tuyệt đối
+        # 1. Thống kê Thẻ Nhân Viên
+        # SỬA LỖI: Dùng ilike (không phân biệt hoa thường) và % để bắt các biến thể chuỗi
         emp_stats = db.query(
             func.strftime('%Y-%m', models.PrintLog.printed_at).label('month'),
-            func.sum(case((models.PrintLog.reason == 'pregnancy', 1), else_=0)).label('pregnancy'),
-            func.sum(case((models.PrintLog.reason == 'has_baby', 1), else_=0)).label('has_baby'),
-            func.sum(case((models.PrintLog.reason == 'normal', 1), else_=0)).label('normal')
+            
+            # Đếm Pregnancy (Bắt tất cả: Pregnancy Register, Pregnancy >7 months...)
+            func.sum(case(
+                (models.PrintLog.reason.ilike('%Pregnancy%'), 1), 
+                else_=0
+            )).label('pregnancy'),
+            
+            # Đếm Has Baby
+            func.sum(case(
+                (models.PrintLog.reason.ilike('%Baby%'), 1), 
+                else_=0
+            )).label('has_baby'),
+            
+            # Đếm Normal (Staff, Worker, Manager...)
+            # Logic: Nếu không phải Bầu và không phải Con nhỏ thì là Normal
+            func.sum(case(
+                (
+                    ~models.PrintLog.reason.ilike('%Pregnancy%') & 
+                    ~models.PrintLog.reason.ilike('%Baby%'), 
+                    1
+                ), 
+                else_=0
+            )).label('normal')
         ).group_by('month').all()
 
-        # 2. Truy vấn thống kê từ bảng ToolPrintLog (Thẻ phụ/Công cụ)
+        # 2. Thống kê Thẻ Công Cụ
         tool_stats = db.query(
             func.strftime('%Y-%m', models.ToolPrintLog.printed_at).label('month'),
             func.sum(models.ToolPrintLog.quantity).label('tool_total')
         ).group_by('month').all()
 
-        # 3. Gộp dữ liệu từ hai bảng vào một Dictionary chung
+        # 3. Gộp dữ liệu (Merge Data)
         combined = {}
 
-        # Xử lý dữ liệu thẻ nhân viên
+        # - Xử lý nhân viên
         for row in emp_stats:
             month = row.month
             combined[month] = {
@@ -80,42 +96,39 @@ def get_print_stats(db: Session = Depends(get_db)):
                 "HasBaby": int(row.has_baby or 0),
                 "Normal": int(row.normal or 0),
                 "Tools": 0,
-                "total": 0  # Sẽ tính sau
+                "total": 0
             }
 
-        # Xử lý gộp dữ liệu thẻ phụ (Tools)
+        # - Xử lý công cụ (Nếu tháng đó chưa có trong dict thì tạo mới)
         for row in tool_stats:
             month = row.month
             val = int(row.tool_total or 0)
-            if month in combined:
-                combined[month]["Tools"] = val
-            else:
+            
+            if month not in combined:
                 combined[month] = {
                     "month": month,
-                    "Pregnancy": 0,
-                    "HasBaby": 0,
-                    "Normal": 0,
-                    "Tools": val,
-                    "total": 0
+                    "Pregnancy": 0, "HasBaby": 0, "Normal": 0,
+                    "Tools": 0, "total": 0
                 }
+            
+            combined[month]["Tools"] = val
 
-        # 4. Tính toán tổng số lượng cho mỗi tháng và chuyển về dạng danh sách (List)
+        # 4. Tính tổng và chuyển về List
         final_result = []
-        for key in combined:
-            item = combined[key]
+        for key, item in combined.items():
             item["total"] = item["Pregnancy"] + item["HasBaby"] + item["Normal"] + item["Tools"]
             final_result.append(item)
 
-        # Sắp xếp kết quả theo thứ tự tháng tăng dần
+        # Sắp xếp theo tháng
         return sorted(final_result, key=lambda x: x['month'])
 
     except Exception as e:
-        # Xử lý lỗi và ghi log
-        logger.error(f"Database Error: {e}")
-        # Trả về mảng rỗng để Frontend không bị crash
+        logger.error(f"Stats Error: {e}")
         return []
-# app/routers/print.py (hoặc file tương đương)
 
+# ============================================================
+# 3. API GHI NHẬN IN THẺ PHỤ/CÔNG CỤ
+# ============================================================
 @router.post("/log-tool")
 def log_tool_print(request: schemas.ToolPrintCreate, db: Session = Depends(get_db)):
     try:
@@ -135,4 +148,3 @@ def log_tool_print(request: schemas.ToolPrintCreate, db: Session = Depends(get_d
         db.rollback()
         logger.error(f"Lỗi lưu log in thẻ phụ: {e}")
         raise HTTPException(status_code=500, detail="Không thể lưu lịch sử in công cụ")
-    
