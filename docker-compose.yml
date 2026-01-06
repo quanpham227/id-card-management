@@ -1,0 +1,25 @@
+services:
+  backend:
+    build: ./backend  # Tự build từ folder code
+    container_name: staffhub_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/static/images:/app/static/images
+      # SỬA TẠI ĐÂY: Mount cả thư mục chứa DB
+      - ./backend/data_storage:/app/data_storage 
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      # ĐẢM BẢO đường dẫn này khớp với vị trí trong Container
+      - DATABASE_URL=sqlite:///./data_storage/sql_app.db
+  frontend:
+    build: ./frontend # Tự build từ folder code (thường dùng Nginx để chạy bản dist)
+    container_name: staffhub_frontend
+    ports:
+      - "9090:80"
+    volumes:
+      # Nginx lấy ảnh từ folder images của backend để hiển thị
+      - ./backend/static/images:/usr/share/nginx/html/images
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - backend

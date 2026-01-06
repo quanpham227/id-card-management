@@ -1,7 +1,6 @@
 # ==========================================
 # 1. BACKEND (Python/FastAPI)
 # ==========================================
-# Caches và tệp thực thi
 **/__pycache__/
 *.py[cod]
 *$py.class
@@ -11,20 +10,21 @@ venv/
 env/
 
 # Database (Cực kỳ quan trọng)
-# Chặn tất cả file sqlite và tệp tạm của nó
 *.db
 *.db-shm
 *.db-wal
 sql_app.db
+# Chặn file DB nếu nó nằm trong folder backend
+backend/*.db
+backend/sql_app.db
 
 # Ảnh nhân viên & Dữ liệu nhạy cảm
-# Bạn cần giữ folder nhưng chặn file bên trong để code không lỗi
 backend/static/images/*
 !backend/static/images/.gitkeep
 backend/backups/*
 !backend/backups/.gitkeep
 
-# Scripts hỗ trợ (Chỉ dùng khi phát triển)
+# Scripts cá nhân/test
 backend/create_super_admin.py
 backend/migrate_json_to_db.py
 backend/backup_script.py
@@ -32,6 +32,9 @@ backend/backup_script.py
 # Logs
 backend/system.log
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # ==========================================
 # 2. FRONTEND (React/Vite/Node)
@@ -40,25 +43,23 @@ frontend/node_modules/
 frontend/dist/
 frontend/dist-ssr/
 frontend/build/
+frontend/coverage/
 
-# Môi trường (Environment variables)
+# Môi trường
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-frontend/.env.production
-frontend/.env.development
+.env.*
+!.env.example
 
 # ==========================================
-# 3. DOCKER
+# 3. DOCKER & DEPLOY DATA
 # ==========================================
 .dockerignore
-# Nếu bạn không muốn đẩy dữ liệu volume của docker lên
+# Thư mục chứa dữ liệu map ra ngoài (Sửa lại cho khớp docker-compose)
+data_storage/
 docker_data/
 
 # ==========================================
-# 4. OS & IDE (Hệ điều hành và Công cụ)
+# 4. OS & IDE
 # ==========================================
 .vscode/
 .idea/

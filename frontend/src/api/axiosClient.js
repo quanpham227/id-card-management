@@ -4,7 +4,7 @@ import { message } from 'antd';
 
 // Create an Axios instance
 const axiosClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL, 
+  baseURL: '/api',
   timeout: 30000, 
   headers: {
     'Content-Type': 'application/json',

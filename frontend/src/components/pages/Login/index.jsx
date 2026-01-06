@@ -14,7 +14,7 @@ const Login = () => {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      const response = await axiosClient.post('/api/login', values);
+      const response = await axiosClient.post('/login', values);
       
       // Bóc tách dữ liệu an toàn
       const data = response.data ? response.data : response;
