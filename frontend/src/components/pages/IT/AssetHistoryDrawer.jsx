@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Drawer, Timeline, Typography, Tag, Space, Button, Divider, Row, Col, Avatar, Form, Select, Input, DatePicker, message, Flex, Spin } from 'antd';
+import { Drawer, Timeline, Typography, Tag, Space, Button, Divider, Row, Col, Avatar, Form, Select, Input, DatePicker, message, Flex, Spin, Popconfirm, Tooltip } from 'antd';
 import { 
   ShoppingCartOutlined, UserOutlined, ToolOutlined, HistoryOutlined,
-  SyncOutlined, PlusOutlined, SaveOutlined, CloseOutlined, LoadingOutlined
+  SyncOutlined, PlusOutlined, SaveOutlined, CloseOutlined, LoadingOutlined,
+  DeleteOutlined, EditOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-// [QUAN TRỌNG] Import axios để gọi API
 import axiosClient from '../../../api/axiosClient';
 
 const { Title, Text } = Typography;
@@ -13,17 +13,23 @@ const { TextArea } = Input;
 const { Option } = Select;
 
 const AssetHistoryDrawer = ({ open, onClose, asset, canEdit }) => {
-  const [isAdding, setIsAdding] = useState(false);
-  const [loading, setLoading] = useState(false); // Loading khi tải danh sách
-  const [historyList, setHistoryList] = useState([]); // Danh sách lịch sử
+  const [isFormVisible, setIsFormVisible] = useState(false); 
+  const [editingLog, setEditingLog] = useState(null); 
+  
+  const [loading, setLoading] = useState(false);
+  const [historyList, setHistoryList] = useState([]);
   const [form] = Form.useForm();
 
-  // --- 1. TẢI DỮ LIỆU TỪ DB KHI MỞ DRAWER ---
+  // --- 1. TẢI DỮ LIỆU ---
   useEffect(() => {
     if (open && asset?.id) {
       fetchHistory();
     } else {
-      setHistoryList([]); // Reset khi đóng
+      setHistoryList([]);
+      // [FIX LỖI WARNING]: Khi đóng Drawer, chỉ reset state, KHÔNG gọi form.resetFields()
+      // vì lúc này Drawer đã đóng, Form không còn tồn tại trên DOM.
+      setIsFormVisible(false);
+      setEditingLog(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, asset]);
@@ -31,10 +37,11 @@ const AssetHistoryDrawer = ({ open, onClose, asset, canEdit }) => {
   const fetchHistory = async () => {
     setLoading(true);
     try {
-      // Gọi API lấy lịch sử: GET /api/assets/{id}/history
-      const res = await axiosClient.get(`/api/assets/${asset.id}/history`);
+      const res = await axiosClient.get(`/assets/${asset.id}/history`);
       if (Array.isArray(res.data)) {
-        setHistoryList(res.data);
+        // Sắp xếp giảm dần theo ngày (mới nhất lên đầu)
+        const sorted = res.data.sort((a, b) => new Date(b.date) - new Date(a.date));
+        setHistoryList(sorted);
       }
     } catch (error) {
       console.error("Lỗi tải lịch sử:", error);
@@ -44,41 +51,91 @@ const AssetHistoryDrawer = ({ open, onClose, asset, canEdit }) => {
     }
   };
 
-  // --- 2. LƯU DỮ LIỆU VÀO DB ---
+  // --- 2. XỬ LÝ LƯU (THÊM MỚI HOẶC CẬP NHẬT) ---
   const handleSaveEvent = async (values) => {
     try {
-      // Chuẩn bị dữ liệu gửi lên Backend
       const payload = {
         date: values.date.format('YYYY-MM-DD'),
-        action_type: values.type,    // Backend dùng 'action_type'
+        action_type: values.type,
         description: values.desc,
-        performed_by: 'IT Admin'     // Tạm thời để cứng hoặc lấy từ localStorage user
+        performed_by: 'IT Admin' 
       };
 
-      // Gọi API lưu: POST /api/assets/{id}/history
-      await axiosClient.post(`/api/assets/${asset.id}/history`, payload);
+      if (editingLog) {
+        // --- CASE UPDATE ---
+        await axiosClient.put(`/assets/history/${editingLog.id}`, payload);
+        message.success('Cập nhật lịch sử thành công!');
+      } else {
+        // --- CASE CREATE ---
+        await axiosClient.post(`/assets/${asset.id}/history`, payload);
+        message.success('Thêm lịch sử thành công!');
+      }
       
-      message.success('Đã lưu lịch sử thành công!');
-      setIsAdding(false);
-      form.resetFields();
-      
-      // Tải lại danh sách để cập nhật dữ liệu mới nhất từ DB
+      handleCancelForm();
       fetchHistory();
 
     } catch (error) {
       console.error("Lỗi lưu lịch sử:", error);
-      message.error("Lưu thất bại!");
+      message.error("Lưu thất bại! (Kiểm tra Backend đã có API Update chưa)");
     }
   };
 
-  // --- HELPER FUNCTIONS (Hiển thị đẹp) ---
+  // --- 3. XỬ LÝ XÓA ---
+  const handleDeleteLog = async (logId) => {
+    try {
+        await axiosClient.delete(`/assets/history/${logId}`);
+        message.success("Đã xóa dòng lịch sử");
+        fetchHistory();
+    } catch (error) {
+        console.error("Lỗi xóa:", error);
+        message.error("Xóa thất bại!");
+    }
+  };
+
+  // --- 4. CÁC HÀM TIỆN ÍCH FORM ---
+  const handleEditClick = (logItem) => {
+      setEditingLog(logItem);
+      setIsFormVisible(true);
+      // Cần set timeout nhỏ hoặc dùng setFieldsValue ngay lập tức nếu form đã mount
+      // Do logic render có điều kiện {isFormVisible && ...}, Form chưa có ngay lập tức
+      // Cách an toàn nhất cho Antd Form trong conditional render:
+      setTimeout(() => {
+          form.setFieldsValue({
+              date: dayjs(logItem.date),
+              type: logItem.action_type,
+              desc: logItem.description
+          });
+      }, 0);
+  };
+
+  const handleAddNewClick = () => {
+      setEditingLog(null);
+      setIsFormVisible(true);
+      // Tương tự, reset fields sau khi form mount
+      setTimeout(() => {
+          form.resetFields();
+          form.setFieldsValue({ date: dayjs(), type: 'note' });
+      }, 0);
+  };
+
+  const handleCancelForm = () => {
+      // [FIX LỖI WARNING]: Reset form TRƯỚC khi ẩn form đi
+      // Để đảm bảo instance form vẫn còn kết nối với DOM khi reset
+      form.resetFields(); 
+      
+      // Sau đó mới ẩn
+      setIsFormVisible(false);
+      setEditingLog(null);
+  };
+
+  // --- HELPER UI ---
   const getTitleByType = (type) => {
     const map = {
       'repair': 'Maintenance / Repair',
       'upgrade': 'Hardware Upgrade',
       'software': 'Software Update',
       'note': 'General Note',
-      'purchase': 'Procured / Purchased', // Thêm mapping cho các loại tự động
+      'purchase': 'Procured / Purchased',
       'assign': 'Handover / Assign',
       'checkin': 'Returned to Stock',
       'broken': 'Reported Broken',
@@ -113,21 +170,52 @@ const AssetHistoryDrawer = ({ open, onClose, asset, canEdit }) => {
 
   if (!asset) return null;
 
-  // Chuyển đổi dữ liệu API sang format Timeline của Antd
   const timelineItems = historyList.map((ev, index) => ({
-    key: ev.id || index, // Dùng ID từ DB làm key
-    color: getColor(ev.action_type), // Backend trả về action_type
+    key: ev.id || index,
+    color: getColor(ev.action_type),
     dot: getIcon(ev.action_type),
     label: <Text type="secondary" style={{fontSize: 12}}>{dayjs(ev.date).format('DD/MM/YY')}</Text>,
     children: (
-      <>
-        <Text strong>{getTitleByType(ev.action_type)}</Text>
-        <br />
-        <Text style={{ fontSize: 13, color: '#595959' }}>{ev.description}</Text>
-        <div style={{ marginTop: 4, fontSize: 11, color: '#bfbfbf' }}>
-           By: {ev.performed_by}
-        </div>
-      </>
+      <div className="timeline-item-content">
+        <Flex justify="space-between" align="start">
+            <div>
+                <Text strong>{getTitleByType(ev.action_type)}</Text>
+                <br />
+                <Text style={{ fontSize: 13, color: '#595959' }}>{ev.description}</Text>
+                <div style={{ marginTop: 4, fontSize: 11, color: '#bfbfbf' }}>
+                   By: {ev.performed_by}
+                </div>
+            </div>
+
+            {canEdit && (
+                <Space size="small">
+                    <Tooltip title="Edit">
+                        <Button 
+                            type="text" 
+                            size="small" 
+                            icon={<EditOutlined style={{color: '#1890ff'}} />} 
+                            onClick={() => handleEditClick(ev)}
+                        />
+                    </Tooltip>
+                    
+                    <Popconfirm 
+                        title="Delete this log?" 
+                        description="Are you sure?" 
+                        onConfirm={() => handleDeleteLog(ev.id)}
+                        okText="Yes"
+                        cancelText="No"
+                    >
+                        <Button 
+                            type="text" 
+                            size="small" 
+                            danger
+                            icon={<DeleteOutlined />} 
+                        />
+                    </Popconfirm>
+                </Space>
+            )}
+        </Flex>
+      </div>
     )
   }));
 
@@ -144,14 +232,13 @@ const AssetHistoryDrawer = ({ open, onClose, asset, canEdit }) => {
       open={open}
       styles={{ body: { paddingBottom: 80 } }}
       extra={
-        canEdit && !isAdding && (
-          <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => setIsAdding(true)}>
+        canEdit && !isFormVisible && (
+          <Button type="primary" size="small" icon={<PlusOutlined />} onClick={handleAddNewClick}>
             Add Log
           </Button>
         )
       }
     >
-      {/* HEADER INFO */}
       <div style={{ background: '#f5f5f5', padding: 16, borderRadius: 8, marginBottom: 24 }}>
         <Row align="middle" gutter={16}>
             <Col>
@@ -169,11 +256,13 @@ const AssetHistoryDrawer = ({ open, onClose, asset, canEdit }) => {
 
       <Divider orientation="left">Activity Timeline</Divider>
 
-      {/* FORM THÊM MỚI */}
-      {isAdding && (
-        <div style={{ marginBottom: 24, padding: 16, border: '1px dashed #1890ff', borderRadius: 8, background: '#f0f9ff' }}>
-          <Text strong style={{display: 'block', marginBottom: 12}}>Log New Activity</Text>
-          <Form form={form} layout="vertical" onFinish={handleSaveEvent} initialValues={{ date: dayjs(), type: 'note' }}>
+      {/* FORM: DÙNG CHUNG CHO ADD VÀ EDIT */}
+      {isFormVisible && (
+        <div style={{ marginBottom: 24, padding: 16, border: `1px dashed ${editingLog ? '#faad14' : '#1890ff'}`, borderRadius: 8, background: editingLog ? '#fffbe6' : '#f0f9ff' }}>
+          <Text strong style={{display: 'block', marginBottom: 12}}>
+             {editingLog ? "Edit Activity Log" : "Log New Activity"}
+          </Text>
+          <Form form={form} layout="vertical" onFinish={handleSaveEvent}>
             <Row gutter={12}>
               <Col span={12}>
                 <Form.Item name="date" label="Date" rules={[{required: true}]}>
@@ -187,6 +276,9 @@ const AssetHistoryDrawer = ({ open, onClose, asset, canEdit }) => {
                     <Option value="repair">Repair / Fix</Option>
                     <Option value="upgrade">Hardware Upgrade</Option>
                     <Option value="software">Software Install</Option>
+                    <Option value="purchase">Purchase</Option>
+                    <Option value="assign">Assign</Option>
+                    <Option value="broken">Broken</Option>
                   </Select>
                 </Form.Item>
               </Col>
@@ -196,14 +288,15 @@ const AssetHistoryDrawer = ({ open, onClose, asset, canEdit }) => {
             </Form.Item>
             
             <Flex justify="end" gap={8}>
-              <Button size="small" icon={<CloseOutlined />} onClick={() => setIsAdding(false)}>Cancel</Button>
-              <Button type="primary" size="small" icon={<SaveOutlined />} htmlType="submit">Save Log</Button>
+              <Button size="small" icon={<CloseOutlined />} onClick={handleCancelForm}>Cancel</Button>
+              <Button type="primary" size="small" icon={<SaveOutlined />} htmlType="submit">
+                 {editingLog ? "Update" : "Save"}
+              </Button>
             </Flex>
           </Form>
         </div>
       )}
 
-      {/* TIMELINE HIỂN THỊ */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: 20 }}><Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} /></div>
       ) : (
@@ -216,7 +309,6 @@ const AssetHistoryDrawer = ({ open, onClose, asset, canEdit }) => {
       {!loading && historyList.length === 0 && (
          <div style={{textAlign: 'center', color: '#999', marginTop: 20}}>No history records found.</div>
       )}
-
     </Drawer>
   );
 };
