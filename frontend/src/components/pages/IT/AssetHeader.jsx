@@ -1,23 +1,76 @@
 import React from 'react';
-import { Flex, Typography, Input, Button, Tooltip, Upload } from 'antd';
+import { Flex, Typography, Input, Button, Tooltip, Upload, Dropdown } from 'antd';
 import { 
   SearchOutlined, PlusOutlined, ReloadOutlined, 
-  FileExcelOutlined, CloudUploadOutlined 
+  FileExcelOutlined, CloudUploadOutlined, DownloadOutlined 
 } from '@ant-design/icons';
+import * as XLSX from 'xlsx';
 
 const { Title, Text } = Typography;
 
 const AssetHeader = ({ 
-  defaultType,     // Loại thiết bị mặc định (PC/Laptop...)
-  filteredCount,   // Số lượng kết quả tìm thấy
-  onSearch,        // Hàm xử lý tìm kiếm
-  onAdd,           // Hàm xử lý khi bấm nút Add New
-  onReload,        // Hàm xử lý khi bấm nút Refresh
-  onExport,        // Hàm xử lý xuất Excel
-  onImport,        // [MỚI] Hàm xử lý Import Excel
-  loading,         // Trạng thái đang tải dữ liệu
-  canEdit          // Quyền hạn của user
+  defaultType,     
+  filteredCount,   
+  onSearch,        
+  onAdd,           
+  onReload,        
+  onExport,        
+  onImport,        
+  loading,         
+  canEdit          
 }) => {
+
+  // Hàm tạo file mẫu
+  const handleDownloadTemplate = () => {
+      const templateData = [
+          {
+              "Asset Code": "PC-TEST-01",
+              "Type": "PC",
+              "Model": "Dell Optiplex 7090",
+              "Health": "Good",
+              "Status": "In Use",
+              "User Name": "Nguyen Van A",
+              "Emp ID": "EMP001",
+              "Department": "IT",
+              "Purchase Date": "2024-01-01",
+              "CPU": "i5-12500",
+              "RAM": "16GB",
+              "Storage": "512GB SSD",
+              "OS": "Windows 11",
+              "Office": "2021",
+              "Monitor": "Dell P2422H",
+              "Notes": "Sample data"
+          }
+      ];
+      const worksheet = XLSX.utils.json_to_sheet(templateData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
+      XLSX.writeFile(workbook, "Asset_Import_Template.xlsx");
+  };
+
+  // [SỬA LỖI] Thay vì tạo <Menu>, ta tạo danh sách items
+  const importMenuItems = [
+      {
+          key: 'upload',
+          label: (
+            <Upload 
+                beforeUpload={(file) => { onImport(file); return false; }} 
+                showUploadList={false} 
+                accept=".xlsx, .xls"
+            >
+                <div style={{ padding: '4px 0' }}>Upload File</div>
+            </Upload>
+          ),
+          icon: <CloudUploadOutlined />
+      },
+      {
+          key: 'template',
+          label: 'Download Template',
+          icon: <DownloadOutlined />,
+          onClick: handleDownloadTemplate
+      }
+  ];
+
   return (
     <Flex 
       justify="space-between" 
@@ -48,8 +101,7 @@ const AssetHeader = ({
           allowClear 
         />
         
-        {/* NÚT XUẤT EXCEL */}
-        <Tooltip title="Export current list to Excel">
+        <Tooltip title="Export current list">
             <Button 
                 icon={<FileExcelOutlined />} 
                 onClick={onExport}
@@ -61,24 +113,15 @@ const AssetHeader = ({
 
         {canEdit && (
           <>
-            {/* [MỚI] NÚT IMPORT EXCEL */}
-            <Upload 
-              beforeUpload={(file) => {
-                onImport(file);
-                return false; // Ngăn không cho tự động upload, để xử lý thủ công
-              }}
-              showUploadList={false}
-              accept=".xlsx, .xls"
-            >
-              <Tooltip title="Import assets from Excel">
+            {/* [SỬA LỖI] Dùng prop 'menu' thay vì 'overlay' */}
+            <Dropdown menu={{ items: importMenuItems }} placement="bottomRight" arrow>
                 <Button 
                   icon={<CloudUploadOutlined />} 
                   style={{ color: '#1890ff', borderColor: '#91d5ff', borderRadius: '8px' }}
                 >
                   Import
                 </Button>
-              </Tooltip>
-            </Upload>
+            </Dropdown>
 
             <Button 
               type="primary" 

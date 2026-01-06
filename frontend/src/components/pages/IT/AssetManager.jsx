@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { message, Modal } from 'antd';
 import axiosClient from '../../../api/axiosClient';
-import * as XLSX from 'xlsx'; // Import thư viện Excel
+import * as XLSX from 'xlsx'; 
 import dayjs from 'dayjs';
 
 // IMPORT CÁC COMPONENTS
@@ -11,67 +11,106 @@ import AssetTable from './AssetTable';
 import AssetHeader from './AssetHeader';
 import AssetHistoryDrawer from './AssetHistoryDrawer';
 
-// IMPORT HOOK TỪ CONTEXT
 import { useEmployees } from '../../../context/useEmployees';
-
-// IMPORT PERMISSIONS
 import { PERMISSIONS } from '../../utils/permissions';
 
 const AssetManager = ({ defaultType }) => {
-  // --- 1. DỮ LIỆU TỪ CONTEXT ---
   const { employees, fetchEmployees } = useEmployees();
 
-  // --- 2. STATE ---
+  // STATE
   const [assets, setAssets] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
-  
-  // State Modal & Drawer
+  const [filterStatus, setFilterStatus] = useState(null); 
+
+  // Modal & Drawer State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState(null); 
   const [submitting, setSubmitting] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [viewingAsset, setViewingAsset] = useState(null);
 
-  // --- 3. PHÂN QUYỀN ---
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const canEditAsset = PERMISSIONS.IS_ADMIN(user.role);
 
-  // --- 4. CALL API ---
+  // --- API CALLS ---
   useEffect(() => { 
-    loadAssetsData();
-    loadEmployeesData(); 
+    loadInitialData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadAssetsData = async () => {
+  const loadInitialData = async () => {
     setLoading(true);
     try {
-      const res = await axiosClient.get('/assets');
-      if (Array.isArray(res.data)) {
-          setAssets(res.data);
-      } else {
-          setAssets([]); 
-      }
-    } catch (error) {
-      console.error('Lỗi tải Assets:', error);
-      setAssets([]);
+        await Promise.all([loadAssetsData(), loadCategories(), loadEmployeesData()]);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 
+  const loadAssetsData = async () => {
+    try {
+      const res = await axiosClient.get('/assets');
+      if (Array.isArray(res.data)) setAssets(res.data);
+      else setAssets([]); 
+    } catch (error) {
+      console.error('Lỗi tải Assets:', error);
+      setAssets([]);
+    }
+  };
+
+  const loadCategories = async () => {
+      try {
+          const res = await axiosClient.get('/categories');
+          if (Array.isArray(res.data)) setCategories(res.data);
+          else setCategories([]);
+      } catch (error) {
+          console.error('Lỗi tải Categories:', error);
+          setCategories([]);
+      }
+  }
+
   const loadEmployeesData = async () => {
     try {
-       if (employees.length === 0) {
-           await fetchEmployees();
-       }
+       if (employees.length === 0) await fetchEmployees();
     } catch (error) {
        console.error("Lỗi tải Employees:", error);
     }
   };
 
-  // --- 5. XỬ LÝ XÓA ---
+  // --- [QUAN TRỌNG] LOGIC LỌC DỮ LIỆU 2 TẦNG ---
+  const safeAssets = Array.isArray(assets) ? assets : [];
+
+  // TẦNG 1: Lọc theo Category (Dùng để hiển thị Stats đúng theo trang hiện tại)
+  const assetsByCategory = safeAssets.filter(item => {
+      if (defaultType && item.category?.code !== defaultType) return false;
+      return true;
+  });
+
+  // TẦNG 2: Lọc chi tiết (Status + Search) để hiển thị Bảng
+  const filteredAssets = assetsByCategory.filter(item => {
+    // Lọc theo Status (từ click thẻ Stats)
+    if (filterStatus) {
+        if (filterStatus === 'CRITICAL') {
+            if (item.health_status !== 'Critical') return false;
+        } else {
+            if (item.usage_status !== filterStatus) return false;
+        }
+    }
+    
+    // Lọc theo Search Text
+    if (!searchText) return true;
+    const kw = searchText.toLowerCase();
+    return (
+      item.asset_code?.toLowerCase().includes(kw) || 
+      item.model?.toLowerCase().includes(kw) ||
+      item.assigned_to?.employee_name?.toLowerCase().includes(kw) ||
+      item.assigned_to?.department?.toLowerCase().includes(kw)
+    );
+  });
+
+  // --- ACTIONS ---
   const handleDelete = async (id) => {
     try {
       await axiosClient.delete(`/assets/${id}`);
@@ -82,13 +121,10 @@ const AssetManager = ({ defaultType }) => {
     }
   };
 
-  // --- 6. XỬ LÝ LƯU (THÊM/SỬA) ---
   const handleSave = async (values) => {
     setSubmitting(true);
     try {
       let assignedUserObject = null;
-
-      // Logic xử lý Assign Mode (Internal/Manual)
       if (values.assignMode === 'internal') {
           const selectedEmp = employees.find(e => e.employee_id === values.assigned_id);
           if (selectedEmp) {
@@ -110,6 +146,7 @@ const AssetManager = ({ defaultType }) => {
       
       const assetData = {
         ...values,
+        category_id: values.category_id, 
         purchase_date: values.purchase_date ? values.purchase_date.format('YYYY-MM-DD') : null,
         usage_status: values.usage_status, 
         assigned_to: assignedUserObject,
@@ -119,20 +156,14 @@ const AssetManager = ({ defaultType }) => {
           storage: values.storage, 
           mainboard: values.mainboard 
         },
-        software: { 
-          os: values.os, 
-          office: values.office 
-        },
-        monitor: (values.type === 'PC') ? { model: values.monitor_model } : null,
+        software: { os: values.os, office: values.office },
+        monitor: (values.category_code === 'PC') ? { model: values.monitor_model } : null,
         notes: values.notes 
       };
 
-      // Clean data
-      delete assetData.assignMode;
-      delete assetData.assigned_id;
-      delete assetData.manual_emp_id;
-      delete assetData.manual_emp_name;
-      delete assetData.manual_emp_dept;
+      // Clean props phụ
+      delete assetData.assignMode; delete assetData.assigned_id; delete assetData.manual_emp_id;
+      delete assetData.manual_emp_name; delete assetData.manual_emp_dept; delete assetData.category_code; 
 
       if (editingAsset) {
         await axiosClient.put(`/assets/${editingAsset.id}`, assetData);
@@ -156,23 +187,7 @@ const AssetManager = ({ defaultType }) => {
     setHistoryOpen(true);
   };
 
-  // --- 7. LOGIC LỌC DỮ LIỆU ---
-  const safeAssets = Array.isArray(assets) ? assets : [];
-
-  const filteredAssets = safeAssets.filter(item => {
-    if (defaultType && item.type !== defaultType) return false;
-    if (!searchText) return true;
-    const kw = searchText.toLowerCase();
-    
-    return (
-      item.asset_code?.toLowerCase().includes(kw) || 
-      item.model?.toLowerCase().includes(kw) ||
-      item.assigned_to?.employee_name?.toLowerCase().includes(kw) ||
-      item.assigned_to?.department?.toLowerCase().includes(kw)
-    );
-  });
-
-  // --- 8. HÀM XUẤT EXCEL ---
+  // --- EXPORT / IMPORT ---
   const handleExportExcel = () => {
     if (filteredAssets.length === 0) {
         message.warning("No data to export");
@@ -180,18 +195,17 @@ const AssetManager = ({ defaultType }) => {
     }
     const dataToExport = filteredAssets.map((item, index) => {
         const user = item.assigned_to?.employee_name || 'Stock / Unassigned';
-        const dept = item.assigned_to?.department || '';
-        const empId = item.assigned_to?.employee_id || '';
+        const typeName = item.category?.name || 'Unknown';
         return {
             "No": index + 1,
             "Asset Code": item.asset_code,
-            "Type": item.type,
+            "Type": typeName,
             "Model": item.model,
             "Health": item.health_status,
             "Status": item.usage_status,
             "User Name": user,
-            "Department": dept,
-            "Emp ID": empId,
+            "Department": item.assigned_to?.department || '',
+            "Emp ID": item.assigned_to?.employee_id || '',
             "Purchase Date": item.purchase_date,
             "CPU": item.specs?.cpu || '',
             "RAM": item.specs?.ram || '',
@@ -209,25 +223,16 @@ const AssetManager = ({ defaultType }) => {
     message.success("Export successful!");
   };
 
-  // --- [HELPER] HÀM CHUYỂN ĐỔI NGÀY EXCEL SANG YYYY-MM-DD ---
   const convertExcelDate = (excelDate) => {
-    if (!excelDate) return dayjs().format('YYYY-MM-DD'); // Default hôm nay nếu rỗng
-    
-    // Nếu là chuỗi "2024-01-01" thì trả về luôn
+    if (!excelDate) return dayjs().format('YYYY-MM-DD'); 
     if (typeof excelDate === 'string' && excelDate.includes('-')) return excelDate;
-
-    // Nếu là số Serial Excel (VD: 45321)
     if (!isNaN(excelDate)) {
-        // Excel base date: 1900-01-01
-        // Trừ đi số ngày lỗi của Excel (Excel tính năm 1900 là năm nhuận sai)
         const date = new Date(Math.round((excelDate - 25569) * 86400 * 1000));
         return dayjs(date).format('YYYY-MM-DD');
     }
-    
     return dayjs().format('YYYY-MM-DD');
   };
 
-  // --- 9. HÀM IMPORT EXCEL (ĐÃ SỬA LỖI DATE & STATUS) ---
   const handleImportExcel = (file) => {
     const reader = new FileReader();
     reader.onload = async (e) => {
@@ -236,9 +241,6 @@ const AssetManager = ({ defaultType }) => {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
-        
-        // raw: false giúp đọc dữ liệu đã format (string) thay vì raw number
-        // Nhưng date: true an toàn hơn cho xử lý logic
         const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
 
         if (jsonData.length === 0) {
@@ -253,12 +255,14 @@ const AssetManager = ({ defaultType }) => {
 
         for (const row of jsonData) {
              try {
-                // 1. Lấy mã Asset Code (Key phải khớp chính xác với Header Excel)
                 const excelCode = row['Asset Code']?.toString().trim();
-                
                 if (!excelCode) continue; 
 
-                // 2. Xử lý User (Chấp nhận cả User Name, Emp ID)
+                const typeName = row['Type']?.toString().trim() || 'PC';
+                const foundCat = categories.find(c => c.name.toLowerCase() === typeName.toLowerCase()) 
+                               || categories.find(c => c.code.toLowerCase() === typeName.toLowerCase());
+                const categoryId = foundCat ? foundCat.id : (categories[0]?.id || 1);
+
                 let assignedObj = null;
                 if (row['Emp ID']) {
                     assignedObj = {
@@ -268,44 +272,30 @@ const AssetManager = ({ defaultType }) => {
                     };
                 }
 
-                // 3. Xử lý Date (Fix lỗi ngày hiện tại)
                 const parsedDate = convertExcelDate(row['Purchase Date']);
-
-                // 4. Xử lý Status & Health (Trim khoảng trắng để tránh lỗi "In Use " !== "In Use")
                 const statusRaw = row['Status'] ? row['Status'].toString().trim() : 'Spare';
                 const healthRaw = row['Health'] ? row['Health'].toString().trim() : 'Good';
 
                 const payload = {
                     asset_code: excelCode,
-                    type: row['Type'] || 'PC',
+                    category_id: categoryId,
                     model: row['Model'] || 'Unknown Model',
-                    
-                    // Gán giá trị đã xử lý trim()
                     health_status: healthRaw,
                     usage_status: statusRaw,
-                    
-                    // Gán ngày đã convert
                     purchase_date: parsedDate,
-                    
                     notes: row['Notes'] || 'Imported via Excel',
                     assigned_to: assignedObj,
-
                     specs: {
                         cpu: row['CPU'] || '',
                         ram: row['RAM'] || '',
                         storage: row['Storage'] || '',
                         mainboard: ''
                     },
-                    software: {
-                        os: row['OS'] || '',
-                        office: row['Office'] || ''
-                    },
+                    software: { os: row['OS'] || '', office: row['Office'] || '' },
                     monitor: row['Monitor'] ? { model: row['Monitor'] } : null
                 };
 
-                // 5. UPSERT LOGIC (Cập nhật hoặc Tạo mới)
                 const existingAsset = assets.find(a => a.asset_code === excelCode);
-
                 if (existingAsset) {
                     await axiosClient.put(`/assets/${existingAsset.id}`, payload);
                     updatedCount++;
@@ -313,29 +303,25 @@ const AssetManager = ({ defaultType }) => {
                     await axiosClient.post('/assets', payload);
                     createdCount++;
                 }
-
              } catch (err) {
                  console.error("Import error row:", row, err);
                  failCount++;
              }
         }
-
         Modal.info({
             title: 'Import Result',
             content: (
                 <div>
-                    <p>Process completed for {jsonData.length} rows.</p>
+                    <p>Processed {jsonData.length} rows.</p>
                     <ul>
-                        <li style={{color: 'green'}}>Created New: {createdCount}</li>
-                        <li style={{color: 'orange'}}>Updated Existing: {updatedCount}</li>
+                        <li style={{color: 'green'}}>Created: {createdCount}</li>
+                        <li style={{color: 'orange'}}>Updated: {updatedCount}</li>
                         <li style={{color: 'red'}}>Failed: {failCount}</li>
                     </ul>
                 </div>
             ),
         });
-
         loadAssetsData(); 
-
       } catch (error) {
         console.error("Error parsing Excel:", error);
         message.error("Failed to process Excel file.");
@@ -348,16 +334,25 @@ const AssetManager = ({ defaultType }) => {
 
   return (
     <div style={{ padding: '0 4px' }}>
-      <AssetStats assets={safeAssets} />
+      
+      {/* [SỬA] Truyền assetsByCategory (Đã lọc theo loại) vào AssetStats */}
+      {/* Như vậy, nếu đang ở trang PC, nó chỉ thống kê PC */}
+      <AssetStats 
+          assets={assetsByCategory} 
+          categories={categories} 
+          activeFilter={filterStatus}
+          onFilterChange={setFilterStatus}
+      />
 
+      {/* Header và Table vẫn dùng filteredAssets (Đã lọc loại + lọc status) */}
       <AssetHeader 
         defaultType={defaultType}
         filteredCount={filteredAssets.length}
         onSearch={setSearchText}
         onAdd={() => { setEditingAsset(null); setIsModalOpen(true); }}
         onReload={loadAssetsData}
-        onExport={handleExportExcel} 
-        onImport={handleImportExcel} 
+        onExport={handleExportExcel}
+        onImport={handleImportExcel}
         loading={loading}
         canEdit={canEditAsset}
       />
@@ -377,7 +372,7 @@ const AssetManager = ({ defaultType }) => {
         onFinish={handleSave}
         editingAsset={editingAsset}
         employees={employees}
-        defaultType={defaultType}
+        categories={categories}
         loading={submitting}
       />
 

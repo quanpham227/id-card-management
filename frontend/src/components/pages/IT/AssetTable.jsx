@@ -19,7 +19,7 @@ const AssetTable = ({
   onViewHistory 
 }) => {
 
-  // Helper to create filters
+  // Helper to create filters dynamically
   const getFilters = (field, subField = null) => {
     const values = assets.map(a => subField ? a[field]?.[subField] : a[field]).filter(Boolean);
     return [...new Set(values)].map(v => ({ text: v, value: v }));
@@ -58,6 +58,7 @@ const AssetTable = ({
       title: 'User / Dept', 
       dataIndex: 'assigned_to', 
       width: 200, 
+      fixed: 'left',
       filters: getFilters('assigned_to', 'department'),
       onFilter: (value, record) => record.assigned_to?.department === value,
       render: (u) => u ? (
@@ -68,28 +69,31 @@ const AssetTable = ({
       ) : <Tag color="default">Stock / Unassigned</Tag>
     },
 
-    // --- 2. TYPE & MODEL ---
+    // --- 2. TYPE & MODEL (CẬP NHẬT LOGIC CATEGORY) ---
     {
       title: 'Type', 
-      dataIndex: 'type', 
-      width: 70, 
-      filters: [
-          { text: 'PC', value: 'PC' }, 
-          { text: 'Laptop', value: 'Laptop' }, 
-          { text: 'Tablet', value: 'Tablet' }, 
-          { text: 'Printer', value: 'Printer' },
-          { text: 'Monitor', value: 'Monitor' } 
-      ],
-      onFilter: (value, record) => record.type === value,
-      render: (type) => {
+      key: 'category', // Không dùng dataIndex trực tiếp vì là object nested
+      width: 100, 
+      // Tạo bộ lọc động dựa trên tên Category hiện có trong bảng
+      filters: getFilters('category', 'name'),
+      onFilter: (value, record) => record.category?.name === value,
+      render: (_, record) => {
+        // Lấy thông tin từ object category
+        const catName = record.category?.name || 'Unknown';
+        const catCode = record.category?.code; // VD: PC, LPT, PRT
+        
+        // Config màu sắc dựa trên Code
         const config = { 
-            'PC': { color: 'blue' }, 'Laptop': { color: 'purple' }, 
-            'Tablet': { color: 'cyan' }, 'Printer': { color: 'orange' },
-            'Monitor': { color: 'magenta' }
+            'PC': 'blue', 
+            'LPT': 'purple',  // Laptop
+            'TAB': 'cyan',    // Tablet
+            'PRT': 'orange',  // Printer
+            'MON': 'magenta'  // Monitor
         };
+        
         return (
-            <Tag color={config[type]?.color || 'default'} style={{ fontSize: '12px' }}>
-                {type}
+            <Tag color={config[catCode] || 'default'} style={{ fontSize: '12px' }}>
+                {catName}
             </Tag>
         );
       }
@@ -97,7 +101,7 @@ const AssetTable = ({
     { 
       title: 'Model', 
       dataIndex: 'model', 
-      width: 100, 
+      width: 120, 
       ellipsis: true,
       render: (t) => <Text style={{ fontSize: '13px', color: '#262626' }}>{t}</Text>
     },
@@ -106,20 +110,21 @@ const AssetTable = ({
     { 
       title: 'CPU', 
       dataIndex: ['specs', 'cpu'], 
-      width: 160, 
+      width: 140, 
       ellipsis: true,
       render: (t) => <Text  style={{ fontSize: '14px', color: '#262626' }}>{t || '-'}</Text>
     },
     { 
       title: 'RAM', 
       dataIndex: ['specs', 'ram'], 
-      width: 120, 
+      width: 80, 
       render: (t) => <Text style={{ fontSize: '14px', color: '#262626' }}>{t || '-'}</Text>
     },
     { 
       title: 'Disk', 
       dataIndex: ['specs', 'storage'], 
-      width: 180, 
+      width: 120, 
+      ellipsis: true,
       render: (t) => <Text style={{ fontSize: '14px', color: '#262626' }}>{t || '-'}</Text>
     },
 
@@ -149,29 +154,26 @@ const AssetTable = ({
         );
       }
     },
-    // [CẬP NHẬT] CỘT HEALTH: THÊM BỘ LỌC + MÀU ĐẬM
     {
       title: 'Health', 
       dataIndex: 'health_status', 
-      width: 100, 
+      width: 90, 
       align: 'center',
-      // --- THÊM PHẦN NÀY ---
       filters: [
         { text: 'Good', value: 'Good' },
         { text: 'Warning', value: 'Warning' },
         { text: 'Critical', value: 'Critical' },
       ],
       onFilter: (value, record) => record.health_status === value,
-      // ---------------------
       render: (h) => {
-        let color = '#d9d9d9'; // Màu mặc định (xám) nếu không khớp
+        let color = '#d9d9d9'; 
         
         if (h === 'Good') {
-             color = '#389e0d'; // Xanh lá đậm
+             color = '#389e0d'; 
         } else if (h === 'Warning') {
-             color = '#d46b08'; // Cam đậm
+             color = '#d46b08'; 
         } else if (h === 'Critical') {
-             color = '#cf1322'; // Đỏ đậm
+             color = '#cf1322'; 
         }
 
         return (
@@ -184,14 +186,15 @@ const AssetTable = ({
      { 
       title: 'OS', 
       dataIndex: ['software', 'os'], 
-      width: 100, 
+      width: 90, 
+      ellipsis: true,
       render: (t) => <Text  style={{ fontSize: '14px', color: '#262626' }}>{t || '-'}</Text>
     },
     // --- 4. ACCESSORIES ---
     { 
       title: 'Monitor', 
       dataIndex: ['monitor', 'model'], 
-      width: 130, 
+      width: 120, 
       ellipsis: true,
       filters: getFilters('monitor', 'model'),
       onFilter: (value, record) => record.monitor?.model === value,
@@ -217,7 +220,7 @@ const AssetTable = ({
         title: 'Action', 
         key: 'action', 
         fixed: 'right', 
-        width: 110,
+        width: 100,
         align: 'center',
         render: (_, r) => (
             <Space size="small">
@@ -242,8 +245,8 @@ const AssetTable = ({
                         />
                     </Tooltip>
                     <Popconfirm 
-                        title="Delete this asset?" 
-                        description="This action cannot be undone."
+                        title="Delete?" 
+                        description="Cannot be undone."
                         onConfirm={() => onDelete(r.id)} 
                         okText="Yes" 
                         cancelText="No"
@@ -268,7 +271,7 @@ const AssetTable = ({
       rowKey="id" 
       loading={loading} 
       size="small" 
-      scroll={{ x: 1700, y: 'calc(100vh - 300px)' }} 
+      scroll={{ x: 1600, y: 'calc(100vh - 300px)' }} 
       style={{ background: '#fff', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
       pagination={{ 
           pageSize: 20, 

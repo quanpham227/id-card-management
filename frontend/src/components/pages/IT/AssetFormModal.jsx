@@ -7,27 +7,41 @@ const { Option } = Select;
 const { TextArea } = Input;
 const { Title, Text } = Typography;
 
-const AssetFormModal = ({ open, onCancel, onFinish, editingAsset, employees = [], defaultType, loading }) => {
+const AssetFormModal = ({ 
+  open, 
+  onCancel, 
+  onFinish, 
+  editingAsset, 
+  employees = [], 
+  categories = [], // [MỚI] Nhận danh sách categories
+  loading 
+}) => {
   const [form] = Form.useForm();
-  const selectedType = Form.useWatch('type', form);
+  
+  // [MỚI] Lấy category_id đang chọn để xử lý logic hiển thị
+  const selectedCatId = Form.useWatch('category_id', form);
+  
+  // Tìm object category tương ứng để lấy mã code (VD: 'PC', 'LPT')
+  const selectedCategory = categories.find(c => c.id === selectedCatId);
+  const catCode = selectedCategory?.code; // PC, LPT, PRT, ...
 
-  // [MỚI] State để quản lý chế độ nhập liệu: 'internal' (chọn list) hoặc 'manual' (nhập tay)
+  // State quản lý chế độ nhập liệu (Internal / Manual)
   const [assignMode, setAssignMode] = useState('internal');
 
   useEffect(() => {
     if (open) {
       if (editingAsset) {
-        // Logic xác định chế độ hiện tại của Asset đang sửa
+        // Logic xác định chế độ hiện tại
         const assignedId = editingAsset.assigned_to?.employee_id;
-        // Kiểm tra xem ID này có trong danh sách nhân viên API không
         const isInternal = employees.some(e => e.employee_id === assignedId);
-        
-        // Nếu có ID mà không tìm thấy trong list -> Suy ra là nhập tay (Manual)
         const mode = (assignedId && !isInternal) ? 'manual' : 'internal';
         setAssignMode(mode);
 
         form.setFieldsValue({
           ...editingAsset,
+          // [QUAN TRỌNG] Map category_id (Backend trả về object category hoặc id, cần lấy ID)
+          category_id: editingAsset.category?.id || editingAsset.category_id,
+          
           cpu: editingAsset.specs?.cpu,
           ram: editingAsset.specs?.ram,
           storage: editingAsset.specs?.storage,
@@ -37,9 +51,8 @@ const AssetFormModal = ({ open, onCancel, onFinish, editingAsset, employees = []
           monitor_model: editingAsset.monitor?.model,
           purchase_date: editingAsset.purchase_date ? dayjs(editingAsset.purchase_date) : null,
           
-          // [MỚI] Mapping dữ liệu dựa trên mode
+          // Map thông tin người dùng
           assigned_id: mode === 'internal' ? assignedId : undefined, 
-          // Nếu là manual thì map dữ liệu cũ vào các ô input tay
           manual_emp_id: mode === 'manual' ? assignedId : undefined, 
           manual_emp_name: mode === 'manual' ? editingAsset.assigned_to?.employee_name : undefined,
           manual_emp_dept: mode === 'manual' ? editingAsset.assigned_to?.department : undefined,
@@ -47,32 +60,23 @@ const AssetFormModal = ({ open, onCancel, onFinish, editingAsset, employees = []
       } else {
         // Reset form cho tạo mới
         form.resetFields();
-        setAssignMode('internal'); // Mặc định là chọn nhân viên nội bộ
+        setAssignMode('internal'); 
         form.setFieldsValue({ 
-          type: defaultType || 'PC', 
           health_status: 'Good', 
           purchase_date: dayjs() 
         });
       }
     }
-  }, [open, editingAsset, defaultType, form, employees]);
+  }, [open, editingAsset, form, employees]);
 
   const handleSubmit = (values) => {
-    const cleanValues = { ...values };
-    const isComputer = ['PC', 'Laptop', 'Tablet'].includes(values.type);
-    
-    // Logic cũ: Xóa các trường specs thừa nếu không phải máy tính
-    if (!isComputer) {
-      delete cleanValues.cpu; delete cleanValues.ram; delete cleanValues.storage;
-      delete cleanValues.mainboard; delete cleanValues.os; delete cleanValues.office;
-    }
-    if (values.type === 'Tablet') delete cleanValues.mainboard;
-    if (values.type !== 'PC') delete cleanValues.monitor_model;
-
-    // [MỚI] Gửi kèm assignMode ra ngoài để AssetManager xử lý
-    // AssetManager sẽ quyết định lấy assigned_id hay lấy manual_... dựa trên mode này
-    onFinish({ ...cleanValues, assignMode });
+    // Gửi kèm code của category để Manager xử lý logic phụ trợ (VD: xóa specs thừa)
+    onFinish({ ...values, assignMode, category_code: catCode });
   };
+
+  // Logic hiển thị Specs: Chỉ hiện cho PC, Laptop, Tablet (Dựa trên Code chuẩn)
+  // Bạn có thể thêm các mã code khác vào mảng này nếu muốn hiện specs
+  const showSpecs = ['PC', 'LPT', 'TAB'].includes(catCode);
 
   return (
     <Modal 
@@ -97,13 +101,12 @@ const AssetFormModal = ({ open, onCancel, onFinish, editingAsset, employees = []
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="type" label="Asset Type" rules={[{required: true}]}>
-                  <Select disabled={!!defaultType}>
-                    <Option value="PC">PC</Option>
-                    <Option value="Laptop">Laptop</Option>
-                    <Option value="Tablet">Tablet</Option>
-                    <Option value="Printer">Printer</Option>
-                    <Option value="Monitor">Monitor</Option>
+                <Form.Item name="category_id" label="Category" rules={[{required: true, message: 'Required'}]}>
+                  <Select placeholder="Select Type">
+                    {/* [MỚI] Render options từ danh sách categories API */}
+                    {categories.map(cat => (
+                        <Option key={cat.id} value={cat.id}>{cat.name}</Option>
+                    ))}
                   </Select>
                 </Form.Item>
               </Col>
@@ -130,9 +133,10 @@ const AssetFormModal = ({ open, onCancel, onFinish, editingAsset, employees = []
               </Col>
             </Row>
 
-            {selectedType === 'PC' && (
+            {/* Chỉ hiện ô nhập màn hình kèm theo nếu là PC */}
+            {catCode === 'PC' && (
               <Form.Item name="monitor_model" label="Monitor Model (Included)">
-                <Input placeholder="Optional monitor info" />
+                <Input placeholder="Included monitor info" />
               </Form.Item>
             )}
           </Col>
@@ -141,23 +145,24 @@ const AssetFormModal = ({ open, onCancel, onFinish, editingAsset, employees = []
             {/* CỘT PHẢI: CẤU HÌNH & GÁN NGƯỜI DÙNG */}
             <Divider orientation="left" style={{marginTop: 0}}>Technical & Assignment</Divider>
             
-            {['PC', 'Laptop', 'Tablet'].includes(selectedType) ? (
+            {showSpecs ? (
               <>
                 <Row gutter={12}>
                   <Col span={12}><Form.Item name="cpu" label="CPU"><Input placeholder="i5, i7..." /></Form.Item></Col>
                   <Col span={12}><Form.Item name="ram" label="RAM"><Input placeholder="8GB, 16GB..." /></Form.Item></Col>
                 </Row>
                 <Form.Item name="storage" label="Storage"><Input placeholder="SSD 512GB..." /></Form.Item>
-                {selectedType !== 'Tablet' && <Form.Item name="mainboard" label="Mainboard"><Input placeholder="B660..." /></Form.Item>}
+                {/* Tablet thì không cần Mainboard */}
+                {catCode !== 'TAB' && <Form.Item name="mainboard" label="Mainboard"><Input placeholder="B660..." /></Form.Item>}
               </>
             ) : (
               <Flex vertical align="center" justify="center" style={{padding: '30px 0', background: '#fafafa', borderRadius: 8, marginBottom: 24}}>
                 <PrinterOutlined style={{fontSize:32, color:'#d9d9d9', marginBottom: 8}} />
-                <Text type="secondary" style={{fontSize: 12}}>No technical specs required</Text>
+                <Text type="secondary" style={{fontSize: 12}}>No technical specs required for this category</Text>
               </Flex>
             )}
             
-            {/* [PHẦN NÂNG CẤP] KHU VỰC GÁN NGƯỜI DÙNG CHUYÊN NGHIỆP */}
+            {/* --- ASSIGN USER SECTION --- */}
             <div style={{ background: '#f5f5f5', padding: '12px 16px', borderRadius: '8px', marginBottom: 16, border: '1px solid #e8e8e8' }}>
                 <Flex justify="space-between" align="center" style={{ marginBottom: 12 }}>
                     <Text strong style={{ fontSize: 13 }}>Assigned User</Text>
@@ -173,7 +178,6 @@ const AssetFormModal = ({ open, onCancel, onFinish, editingAsset, employees = []
                 </Flex>
 
                 {assignMode === 'internal' ? (
-                    // MODE 1: CHỌN TỪ DANH SÁCH NHÂN SỰ
                     <Form.Item name="assigned_id" style={{ marginBottom: 0 }}>
                       <Select
                         placeholder="Select employee from list"
@@ -184,11 +188,10 @@ const AssetFormModal = ({ open, onCancel, onFinish, editingAsset, employees = []
                       />
                     </Form.Item>
                 ) : (
-                    // MODE 2: NHẬP TAY CHO THIẾT BỊ NGOÀI / KHO
                     <Row gutter={8}>
                         <Col span={8}>
                              <Form.Item name="manual_emp_id" rules={[{ required: true, message: 'ID req' }]} style={{ marginBottom: 0 }}>
-                                <Input placeholder="Ext ID (e.g. PRT-01)" />
+                                <Input placeholder="Ext ID" />
                              </Form.Item>
                         </Col>
                         <Col span={16}>
@@ -208,14 +211,12 @@ const AssetFormModal = ({ open, onCancel, onFinish, editingAsset, employees = []
         </Row>
 
         <Divider orientation="left">Software & Remarks</Divider>
-        
-        {['PC', 'Laptop', 'Tablet'].includes(selectedType) && (
+        {showSpecs && (
             <Row gutter={12}>
               <Col span={12}><Form.Item name="os" label="OS"><Input placeholder="Win 11..."/></Form.Item></Col>
               <Col span={12}><Form.Item name="office" label="Office"><Input placeholder="2021..."/></Form.Item></Col>
             </Row>
         )}
-
         <Form.Item name="notes" label="Remarks / Notes">
           <TextArea rows={2} placeholder="Issues..." />
         </Form.Item>

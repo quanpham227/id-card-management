@@ -1,125 +1,178 @@
 import React, { useMemo } from 'react';
 import { Row, Col, Card, Statistic, Flex, Typography } from 'antd';
 import { 
-  DesktopOutlined, 
-  LaptopOutlined, 
-  TabletOutlined, 
-  PrinterOutlined,
-  FundProjectionScreenOutlined, 
-  AlertOutlined,
-  CheckCircleOutlined,
-  InboxOutlined,
-  DisconnectOutlined
+  DesktopOutlined, LaptopOutlined, TabletOutlined, PrinterOutlined,
+  FundProjectionScreenOutlined, AppstoreOutlined,
+  CheckCircleOutlined, InboxOutlined, DisconnectOutlined, AlertOutlined,
+  ClearOutlined
 } from '@ant-design/icons';
+
+// [MỚI] Import Hook điều hướng
+import { useNavigate } from 'react-router-dom';
 
 const { Text } = Typography;
 
-const AssetStats = ({ assets = [] }) => {
-  
-  // 1. TÍNH TOÁN SỐ LIỆU (Đã sửa logic đếm Monitor)
+const AssetStats = ({ assets = [], categories = [], activeFilter, onFilterChange }) => {
+  const navigate = useNavigate(); // [MỚI]
+
   const stats = useMemo(() => {
-    return assets.reduce((acc, curr) => {
-      const type = curr.type?.toLowerCase();
-      
-      // --- ĐẾM LOẠI THIẾT BỊ CHÍNH ---
-      if (type === 'pc') acc.pc++;
-      else if (type === 'laptop') acc.laptop++;
-      else if (type === 'tablet') acc.tablet++;
-      else if (type === 'printer') acc.printer++;
-
-      // --- [FIX LOGIC]: ĐẾM MONITOR ---
-      // Trường hợp 1: Bản thân nó là thiết bị loại "Monitor" (Monitor rời)
-      if (type === 'monitor') {
-        acc.monitor++;
-      } 
-      // Trường hợp 2: Nó là PC nhưng có kèm Màn hình (kiểm tra trường monitor bên trong)
-      else if (curr.monitor && curr.monitor.model) {
-        acc.monitor++;
-      }
-
-      // --- LOGIC TRẠNG THÁI ---
-      let status = curr.usage_status;
-      if (!status) {
-        if (curr.assigned_to && curr.assigned_to.employee_id) status = 'In Use';
-        else status = 'Spare';
-      }
-
-      if (status === 'In Use') acc.inUse++;
-      else if (status === 'Spare') acc.spare++;
-      else if (status === 'Broken') acc.broken++;
-
-      if (curr.health_status === 'Critical') acc.critical++;
-
-      return acc;
-    }, { 
-      pc: 0, laptop: 0, tablet: 0, printer: 0, monitor: 0,
-      inUse: 0, spare: 0, broken: 0, critical: 0 
+    // ... (Giữ nguyên logic tính toán cũ không đổi)
+    const catCounts = {};
+    categories.forEach(cat => {
+        catCounts[cat.id] = { name: cat.name, code: cat.code, count: 0, color: getColor(cat.code) };
     });
-  }, [assets]);
+    catCounts['unknown'] = { name: 'Other', code: 'OTHER', count: 0, color: '#8c8c8c' };
 
-  // 2. CẤU HÌNH DỮ LIỆU HIỂN THỊ
-  const statItems = [
-    { title: 'PCs', value: stats.pc, icon: <DesktopOutlined />, color: '#1890ff', bg: '#e6f7ff' },
-    { title: 'Laptops', value: stats.laptop, icon: <LaptopOutlined />, color: '#722ed1', bg: '#f9f0ff' },
-    { title: 'Monitors', value: stats.monitor, icon: <FundProjectionScreenOutlined />, color: '#eb2f96', bg: '#fff0f6' }, 
-    { title: 'Tablets', value: stats.tablet, icon: <TabletOutlined />, color: '#13c2c2', bg: '#e6fffb' },
-    { title: 'Printers', value: stats.printer, icon: <PrinterOutlined />, color: '#fa8c16', bg: '#fff7e6' },
-    
-    { title: 'In Use', value: stats.inUse, icon: <CheckCircleOutlined />, color: '#52c41a', bg: '#f6ffed' },
-    { title: 'Spare (Kho)', value: stats.spare, icon: <InboxOutlined />, color: '#2f54eb', bg: '#f0f5ff' },
-    { title: 'Broken', value: stats.broken, icon: <DisconnectOutlined />, color: '#faad14', bg: '#fffbe6' },
-    { title: 'Critical', value: stats.critical, icon: <AlertOutlined />, color: '#f5222d', bg: '#fff1f0', isAlert: true },
+    const statusCounts = { inUse: 0, spare: 0, broken: 0, critical: 0 };
+
+    assets.forEach(item => {
+        const catId = item.category?.id || item.category_id;
+        if (catCounts[catId]) catCounts[catId].count++;
+        else catCounts['unknown'].count++;
+
+        const st = item.usage_status;
+        if (st === 'In Use') statusCounts.inUse++;
+        else if (st === 'Spare') statusCounts.spare++;
+        else if (st === 'Broken') statusCounts.broken++;
+
+        if (item.health_status === 'Critical') statusCounts.critical++;
+    });
+
+    return { catCounts, statusCounts };
+  }, [assets, categories]);
+
+  function getColor(code) {
+      const c = code?.toUpperCase();
+      if (c === 'PC') return '#1890ff';
+      if (c === 'LPT' || c === 'LAPTOP') return '#722ed1';
+      if (c === 'TAB' || c === 'TABLET') return '#13c2c2';
+      if (c === 'PRT' || c === 'PRINTER') return '#fa8c16';
+      if (c === 'MON' || c === 'MONITOR') return '#eb2f96';
+      return '#595959';
+  }
+
+  function getIcon(code, color) {
+      const style = { fontSize: '22px', color: color };
+      const c = code?.toUpperCase();
+      if (c === 'PC') return <DesktopOutlined style={style} />;
+      if (c === 'LPT' || c === 'LAPTOP') return <LaptopOutlined style={style} />;
+      if (c === 'PRT' || c === 'PRINTER') return <PrinterOutlined style={style} />;
+      if (c === 'TAB' || c === 'TABLET') return <TabletOutlined style={style} />;
+      if (c === 'MON' || c === 'MONITOR') return <FundProjectionScreenOutlined style={style} />;
+      return <AppstoreOutlined style={style} />;
+  }
+
+  const categoryStatsArray = Object.values(stats.catCounts).filter(c => c.count > 0 || c.code !== 'OTHER');
+
+  const statusItems = [
+    { title: 'In Use', filterKey: 'In Use', value: stats.statusCounts.inUse, icon: <CheckCircleOutlined />, color: '#52c41a', bg: '#f6ffed' },
+    { title: 'Spare (Kho)', filterKey: 'Spare', value: stats.statusCounts.spare, icon: <InboxOutlined />, color: '#2f54eb', bg: '#f0f5ff' },
+    { title: 'Broken', filterKey: 'Broken', value: stats.statusCounts.broken, icon: <DisconnectOutlined />, color: '#faad14', bg: '#fffbe6' },
+    { title: 'Critical', filterKey: 'CRITICAL', value: stats.statusCounts.critical, icon: <AlertOutlined />, color: '#f5222d', bg: '#fff1f0', isAlert: true },
   ];
 
-  return (
-    <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-      {statItems.map((item, index) => (
-        <Col key={index} xs={12} sm={8} md={6} lg={4} xl={index < 5 ? 4 : 5} xxl={index < 5 ? 2 : 3} flex="auto">
-          <Card 
-            variant="borderless" 
-            hoverable 
-            style={{ 
-              borderRadius: '10px', 
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)', 
-              height: '100%',
-              overflow: 'hidden'
-            }}
-            styles={{ body: { padding: '12px 16px' } }}
-          >
-            <Flex align="center" gap={16}>
-              <Flex 
-                align="center" 
-                justify="center" 
-                style={{ 
-                  width: '48px', 
-                  height: '48px', 
-                  borderRadius: '12px', 
-                  backgroundColor: item.bg,
-                  flexShrink: 0 
-                }}
-              >
-                {React.cloneElement(item.icon, { style: { fontSize: '22px', color: item.color } })}
-              </Flex>
+  const handleCardClick = (key) => {
+      if (activeFilter === key) {
+          onFilterChange(null);
+      } else {
+          onFilterChange(key);
+      }
+  };
 
-              <Flex vertical justify="center" style={{ overflow: 'hidden' }}>
-                <Text type="secondary" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
-                  {item.title}
-                </Text>
-                <Statistic 
-                  value={item.value} 
-                  valueStyle={{ 
-                    fontSize: '20px', 
-                    fontWeight: 700, 
-                    color: item.isAlert && item.value > 0 ? '#f5222d' : '#262626',
-                    lineHeight: 1.2
-                  }} 
-                />
+  // [MỚI] Hàm xử lý khi bấm vào thẻ Category
+  const handleCategoryClick = (code) => {
+      if (code === 'OTHER') return;
+      // Chuyển hướng sang trang category tương ứng
+      navigate(`/it/${code.toLowerCase()}`);
+  };
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      {/* 1. DÒNG THỐNG KÊ DANH MỤC */}
+      <Text strong style={{display: 'block', marginBottom: 8, fontSize: 12, color: '#8c8c8c'}}>BY CATEGORY</Text>
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        {categoryStatsArray.map((item, index) => (
+          <Col key={index} xs={12} sm={8} md={6} lg={4} flex="auto">
+            <Card 
+                variant="borderless" 
+                // [MỚI] Thêm sự kiện click chuyển trang
+                onClick={() => handleCategoryClick(item.code)}
+                style={{ 
+                    borderRadius: '8px', 
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                    cursor: 'pointer', // Biến thành hình bàn tay
+                    transition: 'all 0.2s'
+                }} 
+                styles={{ body: { padding: '12px' } }}
+                hoverable // Hiệu ứng nổi lên khi di chuột
+            >
+              <Flex align="center" gap={12}>
+                <Flex align="center" justify="center" style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: `${item.color}15` }}>
+                  {getIcon(item.code, item.color)}
+                </Flex>
+                <Flex vertical>
+                  <Text type="secondary" style={{ fontSize: '11px' }}>{item.name}</Text>
+                  <Statistic value={item.count} valueStyle={{ fontSize: '18px', fontWeight: 700, lineHeight: 1 }} />
+                </Flex>
               </Flex>
-            </Flex>
-          </Card>
-        </Col>
-      ))}
-    </Row>
+            </Card>
+          </Col>
+        ))}
+      </Row>
+
+      {/* 2. DÒNG THỐNG KÊ TRẠNG THÁI */}
+      <Flex justify="space-between" align="center" style={{ marginBottom: 8 }}>
+          <Text strong style={{ fontSize: 12, color: '#8c8c8c' }}>BY STATUS (CLICK TO FILTER)</Text>
+          {activeFilter && (
+              <a onClick={() => onFilterChange(null)} style={{ fontSize: 12, cursor: 'pointer' }}>
+                  <ClearOutlined /> Clear Filter
+              </a>
+          )}
+      </Flex>
+      
+      <Row gutter={[12, 12]}>
+        {statusItems.map((item, index) => {
+            const isActive = activeFilter === item.filterKey;
+            return (
+                <Col key={index} xs={12} sm={6} md={6} lg={6}>
+                     <Card 
+                        variant="borderless" 
+                        onClick={() => handleCardClick(item.filterKey)} 
+                        style={{ 
+                            borderRadius: '8px', 
+                            borderLeft: `4px solid ${item.color}`,
+                            cursor: 'pointer', 
+                            transition: 'all 0.2s',
+                            transform: isActive ? 'translateY(-2px)' : 'none',
+                            boxShadow: isActive ? `0 4px 12px ${item.color}40` : '0 1px 2px rgba(0,0,0,0.03)',
+                            background: isActive ? '#fff' : '#fafafa'
+                        }} 
+                        styles={{ body: { padding: '12px' } }}
+                     >
+                        <Flex justify="space-between" align="center">
+                            <Flex vertical>
+                                <Text type="secondary" style={{ fontSize: '11px', fontWeight: isActive ? 600 : 400 }}>
+                                    {item.title}
+                                </Text>
+                                <Statistic 
+                                    value={item.value} 
+                                    valueStyle={{ 
+                                        fontSize: '20px', 
+                                        fontWeight: 700, 
+                                        color: item.isAlert && item.value > 0 ? '#f5222d' : undefined 
+                                    }} 
+                                />
+                            </Flex>
+                            <div style={{ fontSize: '20px', color: item.color, opacity: isActive ? 1 : 0.5 }}>
+                                {item.icon}
+                            </div>
+                        </Flex>
+                     </Card>
+                </Col>
+            );
+        })}
+      </Row>
+    </div>
   );
 };
 
