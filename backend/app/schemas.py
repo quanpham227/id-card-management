@@ -1,19 +1,34 @@
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
-from datetime import date
+from datetime import date, datetime
 
 # ==========================================
-# 1. SCHEMAS CHO LỊCH SỬ (HISTORY) - [MỚI]
+# 0. SCHEMAS CHO CATEGORY - [MỚI]
 # ==========================================
+class CategoryBase(BaseModel):
+    name: str  # Laptop, PC
+    code: str  # LPT, PC
+    description: Optional[str] = None
 
-# Dùng để nhận dữ liệu khi thêm thủ công (Add Log)
+class CategoryCreate(CategoryBase):
+    pass
+
+class CategoryResponse(CategoryBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+# ==========================================
+# 1. SCHEMAS CHO LỊCH SỬ
+# ==========================================
 class AssetHistoryCreate(BaseModel):
     date: date
-    action_type: str  # 'repair', 'upgrade', 'note'...
+    action_type: str
     description: str
     performed_by: Optional[str] = "Admin"
 
-# Dùng để trả dữ liệu về Frontend (có thêm id)
 class AssetHistoryResponse(AssetHistoryCreate):
     id: int
     asset_id: int
@@ -30,13 +45,20 @@ class AssignedToModel(BaseModel):
     employee_name: str
     department: str
 
-# Schema cơ bản cho Asset (Dùng cho cả Create và Update)
+# Schema cơ bản cho Asset
 class AssetBase(BaseModel):
     asset_code: str
-    type: str           # PC / Laptop / Printer / Tablet / Monitor
+    
+    # [SỬA ĐỔI]: Thay 'type' bằng 'category_id'
+    # Tuy nhiên, để tiện cho Frontend, khi tạo mới ta truyền ID danh mục
+    category_id: Optional[int] = None 
+    
+    # Nếu muốn hỗ trợ cả nhập type string cũ (để tương thích ngược tạm thời):
+    # type: Optional[str] = None 
+
     model: str
     health_status: Optional[str] = "Good"
-    usage_status: Optional[str] = "Spare" # In Use, Spare, Broken
+    usage_status: Optional[str] = "Spare"
     purchase_date: Optional[date] = None
     notes: Optional[str] = None
     
@@ -46,23 +68,21 @@ class AssetBase(BaseModel):
     software: Optional[Dict[str, Any]] = {"os": "", "office": ""}
     monitor: Optional[Dict[str, Any]] = None
 
-# Dùng để tạo mới (giống Base)
 class AssetCreate(AssetBase):
     pass
 
-# Dùng để trả về (có thêm ID và list history)
+# Khi trả về, ta muốn kèm thông tin chi tiết Category (tên) chứ không chỉ ID
 class AssetResponse(AssetBase):
     id: int
-    # Nếu muốn trả kèm history luôn thì uncomment dòng dưới, nhưng nên dùng API riêng cho nhẹ
-    # history_logs: List[AssetHistoryResponse] = []
+    category: Optional[CategoryResponse] = None # Include chi tiết danh mục
 
     class Config:
         from_attributes = True
 
+
 # ==========================================
-# 3. SCHEMAS KHÁC (USER, PRINT...)
+# 3. SCHEMAS KHÁC (USER, PRINT...) - GIỮ NGUYÊN
 # ==========================================
-# (Giữ nguyên phần cũ của bạn, chỉ chỉnh lại tên class cho chuẩn Pydantic nếu cần)
 class LoginModel(BaseModel):
     username: str
     password: str
@@ -71,11 +91,8 @@ class UserModel(BaseModel):
     username: str
     password: str
     full_name: str
-    role: str   # Admin / IT / HR
+    role: str
 
-# ==========================================
-# 4. SCHEMAS CHO PRINT LOG (Nếu có)
-# ==========================================
 class PrintLogRequest(BaseModel):
     employee_id: str
     employee_name: str
@@ -83,7 +100,6 @@ class PrintLogRequest(BaseModel):
     maternity_type: str
     printed_at: str
 
-# THÊM VÀO ĐOẠN NÀY:
 class PrintItem(BaseModel):
     employee_id: str
     employee_name: str
@@ -95,12 +111,6 @@ class PrintRequest(BaseModel):
     employees: List[PrintItem]
     reason: str = "New Issue"
     printed_by: str = "Admin"
-
-# app/schemas.py
-
-from pydantic import BaseModel
-from datetime import datetime
-from typing import Optional
 
 class ToolPrintCreate(BaseModel):
     card_type: str

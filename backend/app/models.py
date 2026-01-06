@@ -1,16 +1,36 @@
-from sqlalchemy import Column, Integer, String, Date, ForeignKey, Text, Boolean, JSON
+from sqlalchemy import Column, Integer, String, Date, ForeignKey, Text, Boolean, JSON, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
-from sqlalchemy import DateTime
 
-# --- BẢNG TÀI SẢN (CŨ) ---
+# --- [MỚI] BẢNG DANH MỤC THIẾT BỊ ---
+class AssetCategory(Base):
+    __tablename__ = "categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)  # Ví dụ: "Laptop", "PC"
+    code = Column(String, unique=True)              # Ví dụ: "LPT", "PC"
+    description = Column(Text, nullable=True)
+    
+    # Quan hệ 1-nhiều: Một Category có nhiều Asset
+    assets = relationship("Asset", back_populates="category")
+
+
+# --- BẢNG TÀI SẢN (SỬA ĐỔI) ---
 class Asset(Base):
     __tablename__ = "assets"
 
     id = Column(Integer, primary_key=True, index=True)
     asset_code = Column(String, unique=True, index=True)
-    type = Column(String) 
+    
+    # [SỬA ĐỔI]: Thay cột type (String) bằng Foreign Key trỏ tới categories
+    # Lưu ý: Cột type cũ vẫn có thể giữ lại làm 'backup' hoặc xóa đi nếu migrate dữ liệu
+    # Ở đây mình thêm cột mới category_id
+    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    
+    # Nếu muốn giữ lại cột type để tương thích code cũ trong thời gian chuyển đổi
+    # type = Column(String, nullable=True) 
+
     model = Column(String)
     health_status = Column(String, default="Good")
     usage_status = Column(String, default="Spare") # In Use, Spare, Broken
@@ -22,63 +42,61 @@ class Asset(Base):
     software = Column(JSON, nullable=True)
     monitor = Column(JSON, nullable=True)
     
-    # Thông tin người đang dùng (lưu JSON cho gọn, hoặc quan hệ bảng Employees nếu muốn chặt chẽ)
+    # Thông tin người đang dùng
     assigned_to = Column(JSON, nullable=True) 
 
-    # [MỚI] MỐI QUAN HỆ VỚI LỊCH SỬ
+    # Mối quan hệ
     history_logs = relationship("AssetHistory", back_populates="asset", cascade="all, delete-orphan")
+    category = relationship("AssetCategory", back_populates="assets")
 
 
-# --- [MỚI] BẢNG LỊCH SỬ ---
+# --- BẢNG LỊCH SỬ (GIỮ NGUYÊN) ---
 class AssetHistory(Base):
     __tablename__ = "asset_history"
 
     id = Column(Integer, primary_key=True, index=True)
     asset_id = Column(Integer, ForeignKey("assets.id"))
     
-    date = Column(Date, default=func.now())  # Ngày diễn ra sự kiện
-    action_type = Column(String)             # Loại: 'purchase', 'assign', 'repair', 'broken'...
-    description = Column(Text)               # Mô tả chi tiết
-    performed_by = Column(String)            # Người thực hiện (Admin/IT)
+    date = Column(Date, default=func.now())  
+    action_type = Column(String)             
+    description = Column(Text)               
+    performed_by = Column(String)            
 
-    # Relationship ngược lại
     asset = relationship("Asset", back_populates="history_logs")
 
-    # --- [MỚI] BẢNG LỊCH SỬ IN THẺ (KHÔNG CẦN BẢNG EMPLOYEE) ---
+
+# --- BẢNG PRINT LOG (GIỮ NGUYÊN) ---
 class PrintLog(Base):
     __tablename__ = "print_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    
-    # Chúng ta lưu cứng thông tin nhân viên tại thời điểm in
     employee_id = Column(String, index=True) 
     employee_name = Column(String)           
     department = Column(String)
-    job_title = Column(String, nullable=True) # Lưu thêm chức vụ nếu cần
-    
-    printed_at = Column(DateTime, default=func.now()) # Thời gian in
-    printed_by = Column(String, default="Admin")      # Người thực hiện in
-    reason = Column(String, default="New Issue")      # Lý do in
+    job_title = Column(String, nullable=True)
+    printed_at = Column(DateTime, default=func.now())
+    printed_by = Column(String, default="Admin")
+    reason = Column(String, default="New Issue")
 
 class ToolPrintLog(Base):
     __tablename__ = "tool_print_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    card_type = Column(String)          # Loại thẻ: 'Visitor', 'Contractor', 'Backside'...
-    serial_number = Column(String)      # Số thẻ: '001', '015', 'N/A'
-    orientation = Column(String)        # Hướng in: 'portrait' hoặc 'landscape'
+    card_type = Column(String)
+    serial_number = Column(String)
+    orientation = Column(String)
     quantity = Column(Integer, default=1)
-    
-    printed_at = Column(DateTime, default=func.now()) # Thời gian in
-    printed_by = Column(String, default="Admin")      # Người in
+    printed_at = Column(DateTime, default=func.now())
+    printed_by = Column(String, default="Admin")
 
 
+# --- BẢNG USER (GIỮ NGUYÊN) ---
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
     full_name = Column(String)
-    hashed_password = Column(String) # Lưu password đã mã hóa, KHÔNG lưu text thường
-    role = Column(String) # Admin, IT, HR, Staff
+    hashed_password = Column(String)
+    role = Column(String)
     is_active = Column(Boolean, default=True)
