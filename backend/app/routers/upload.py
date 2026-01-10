@@ -13,7 +13,7 @@ router = APIRouter()
 async def upload_images(files: List[UploadFile] = File(...), x_user_role: Optional[str] = Header(None)):
     current_role = x_user_role.strip().lower() if x_user_role else ""
     
-    if current_role not in ["admin", "manager", "HR"]:
+    if current_role not in ["admin", "manager", "hr"]:
         raise HTTPException(403, "Access Denied")
         
     saved_files = []

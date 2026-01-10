@@ -15,7 +15,7 @@ from app import models
 from app.config import BACKUP_FILE
 
 # Cấu hình URL HR
-HR_API_URL = "http://113.160.232.187:81/pidn/api/gwhrWebService.asmx/GetEmployeeList"
+HR_API_URL = "http://pivinadanang/pidn/api/gwhrWebService.asmx/GetEmployeeList"
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

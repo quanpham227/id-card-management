@@ -11,14 +11,10 @@ const HorizontalCard = ({
   pregnancyInfo // Object chứa line1, line2
 }) => {
   // --- XÁC ĐỊNH MÀU CHỮ ---
-  // Có thông tin thai sản => Luôn là màu ĐEN
-  // Không có => Luôn là màu TRẮNG (cho Staff/Manager)
   const isMaternityCard = !!pregnancyInfo; 
   const textColor = isMaternityCard ? '#000000' : '#ffffff';
 
-  // --- XÁC ĐỊNH VIỀN ẢNH ---
-  // Thẻ bầu (nền trắng/sáng) => Viền đen
-  // Thẻ thường (nền xanh đậm) => Viền trắng mờ
+  // --- XÁC ĐỊNH VIỀN ẢNH VÀ NỀN ẢNH ---
   const borderColor = isMaternityCard ? '#000000' : 'rgba(255,255,255,0.6)';
   const photoBg = isMaternityCard ? 'transparent' : 'rgba(255,255,255,0.1)';
 
@@ -31,18 +27,51 @@ const HorizontalCard = ({
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
-        position: 'relative',
+        position: 'relative', // Quan trọng để định vị các thành phần con (absolute)
         display: 'flex',
         fontFamily: "'Roboto', Arial, sans-serif",
-        color: textColor, // Áp dụng màu chữ động
+        color: textColor,
         boxSizing: 'border-box'
       }}
     >
+      {/* ===== [MỚI] THÔNG TIN THAI SẢN (GÓC PHẢI TRÊN) ===== 
+          Sử dụng position absolute để đưa về góc phải, đè lên nền
+      */}
+      {pregnancyInfo && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '3mm',     // Cách mép trên 3mm (bạn có thể chỉnh số này)
+            right: '3mm',   // Cách mép phải 3mm (bạn có thể chỉnh số này)
+            zIndex: 10,     // Đảm bảo nổi lên trên
+            
+            // --- Hiệu ứng nền mờ ---
+            backgroundColor: 'rgba(255, 255, 255, 0.6)', // Màu trắng độ trong suốt 60%
+            backdropFilter: 'blur(2px)', // Làm mờ cảnh phía sau (nếu trình duyệt hỗ trợ)
+            boxShadow: '0 0 4px rgba(0,0,0,0.1)', // Đổ bóng nhẹ cho rõ khối
+            borderRadius: '4px',
+            padding: '1mm 2mm', // Khoảng cách đệm bên trong khung
+            
+            // --- Style chữ ---
+            textAlign: 'right',
+            fontSize: '9px',
+            color: '#ff0000', // Màu đỏ
+            lineHeight: '1.4',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <div>{pregnancyInfo.line1}</div>
+          <div>{pregnancyInfo.line2}</div>
+        </div>
+      )}
+
       {/* ===== CỘT ẢNH (BÊN TRÁI) ===== */}
-      <div style={{ width: '30mm', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingLeft: '4mm' }}>
+      <div style={{ width: '30mm', display: 'flex', justifyContent: 'center', paddingLeft: '4mm' }}>
+        {/* Khung ảnh: Giữ nguyên setting 26mm x 36mm và đẩy xuống 8mm của bạn */}
         <div style={{
-            width: '23mm',
-            height: '30mm',
+            width: '26mm',
+            height: '36mm',
+            marginTop: '13mm', // Đẩy ảnh xuống dưới
             position: 'relative',
             borderRadius: '8px', 
             border: `1px solid ${borderColor}`,
@@ -54,13 +83,7 @@ const HorizontalCard = ({
               src={employeeImg} 
               alt="Avatar" 
               onError={() => setImageError(true)} 
-              style={{ 
-                width: '100%', 
-                height: '100%', 
-                objectFit: 'cover', 
-                borderRadius: '8px', 
-                display: 'block' 
-              }} 
+              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', display: 'block' }} 
             />
           ) : (
             <NoImagePlaceholder isDarkBg={!isMaternityCard} />
@@ -84,26 +107,10 @@ const HorizontalCard = ({
           alignItems: 'center',
           textAlign: 'center',
           paddingRight: '4mm',
-          // Đẩy chữ lên một chút nếu có dòng ngày tháng thai sản
-          marginTop: isMaternityCard ? '-4mm' : '0' 
+          marginTop: '0' // Không cần đẩy lên nữa vì thông tin thai sản đã chuyển ra chỗ khác
         }}
       >
-        {/* 1. DÒNG THÔNG TIN THAI SẢN (LUÔN ĐỎ) */}
-        {pregnancyInfo && (
-          <div
-            style={{
-              fontSize: '8.5px',
-              fontWeight: 500, // Đậm hơn chút cho dễ đọc
-              color: '#ff0000', // Đảm bảo màu đỏ theo yêu cầu
-              marginBottom: '1.5mm',
-              lineHeight: '1.2',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            <div>{pregnancyInfo.line1}</div>
-            <div>{pregnancyInfo.line2}</div>
-          </div>
-        )}
+        
 
         {/* 2. CHỨC VỤ */}
         <div
@@ -114,7 +121,6 @@ const HorizontalCard = ({
             width: '85%',
             lineHeight: '1.2',
             marginBottom: '2mm',
-            // Kế thừa màu từ cha (textColor)
           }}
         >
           {data.employee_position}
@@ -127,7 +133,6 @@ const HorizontalCard = ({
             fontWeight: 800,
             marginBottom: '1.5mm',
             whiteSpace: 'nowrap',
-            // Kế thừa màu từ cha
           }}
         >
           {data.employee_name}
@@ -139,7 +144,6 @@ const HorizontalCard = ({
             fontSize: '13px',
             fontWeight: 600,
             letterSpacing: '0.5px',
-            // Kế thừa màu từ cha
           }}
         >
           {data.employee_id}
@@ -152,7 +156,6 @@ const HorizontalCard = ({
             fontSize: '9.5px',
             fontWeight: 600,
             textTransform: 'uppercase',
-            // Kế thừa màu từ cha
           }}
         >
           {data.employee_department}

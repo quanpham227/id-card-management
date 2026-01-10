@@ -11,7 +11,6 @@ Dự án sử dụng Docker để đóng gói. Quy trình deploy gồm 3 giai đ
 
 **Bước 1: Chuẩn bị thư mục dữ liệu (Để tránh lỗi Docker)**
 Mở terminal tại thư mục gốc dự án:
-```bash
 # Windows (PowerShell)
 New-Item -ItemType Directory -Path "data_storage\images" -Force
 New-Item -ItemType File -Path "data_storage\sql_app.db"
@@ -22,18 +21,20 @@ touch data_storage/sql_app.db
 
 Bước 2: Build Image (Tạo khuôn phần mềm)
 # 1. Build Backend
+docker build --no-cache -t staffhub-backend:v1 -f backend/Dockerfile ./backend
 docker build -t staffhub-backend:v1 -f backend/Dockerfile ./backend
 
 # 2. Build Frontend (Sẽ mất vài phút)
 docker build -t staffhub-frontend:v1 -f frontend/Dockerfile ./frontend
+docker build --no-cache -t staffhub-frontend:v1 -f frontend/Dockerfile ./frontend
 
 #Bước 3: Đóng gói thành file .tar (Tạo bộ cài)
 docker save -o staffhub-deploy.tar staffhub-backend:v1 staffhub-frontend:v1
 
 
-3 cho nó vô 1 thư mục , copy images và db copy sang ubuntu
 
-
+docker-compose up -d --build
+hoac
 docker-compose up -d
 # Xem log
 docker logs staffhub_backend
@@ -43,11 +44,11 @@ docker-compose down
 # dọn dẹp file không cần thiết
 docker image prune -f
 
-# 
+# # tại tk
 docker exec -it staffhub_backend python create_super_admin.py
 
-# đóng gói 
-docker save -o staffhub-deploy.tar staffhub-backend:v1 staffhub-frontend:v1
+3 cho nó vô 1 thư mục , copy images và db copy sang ubuntu
+
 
 deploy_package/
 ├── docker-compose.yml
@@ -63,13 +64,13 @@ deploy_package/
 
 1. đăng nhập ubuntu 
 ssh ubuntu_server
-2. Mở PowerShell tại vị trí có thư mục deploy_package (hoặc mở PowerShell rồi cd đến đó).
+1. Mở PowerShell tại vị trí có thư mục deploy_package (hoặc mở PowerShell rồi cd đến đó).
 scp -r deploy_package ubuntu_server:/home/quanpham/
-3. mở tệp yml
+1. mở tệp yml
 nano docker-compose.yml
 # lệnh tr+o để lưu nhấn enter rồi nhấn ctr + x
 
-4. Chạy lại
+1. Chạy lại
 
 sudo docker compose up -d
 

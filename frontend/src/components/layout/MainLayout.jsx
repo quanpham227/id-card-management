@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layout, Menu, Button, Avatar, Space, message, Dropdown, Typography, theme } from 'antd';
+import { Layout, Menu, Button, Avatar, Space, message, Dropdown, Typography } from 'antd'; // [SỬA] Đã xóa 'theme'
 import { 
   UserOutlined, CloudUploadOutlined, FileSearchOutlined, LogoutOutlined,
   MenuUnfoldOutlined, MenuFoldOutlined, DesktopOutlined, LaptopOutlined,     
@@ -10,7 +10,7 @@ import {
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 
-// [QUAN TRỌNG] Thay vì import axiosClient, ta import Context
+// Import Context
 import { useCategories } from '../../context/CategoryProvider';
 
 const { Header, Sider, Content } = Layout;
@@ -21,11 +21,10 @@ const MainLayout = () => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   
-  // [QUAN TRỌNG] Lấy danh sách category từ Context thay vì State nội bộ
-  // Khi trang Admin thêm mới, Context cập nhật -> Biến này tự đổi -> Sidebar tự vẽ lại
+  // Lấy danh sách category từ Context
   const { categories: assetCategories } = useCategories();
   
-  const { token } = theme.useToken(); 
+  // [SỬA] Đã XÓA dòng const { token } = theme.useToken(); vì không dùng đến
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const userRole = user.role; 
@@ -36,7 +35,7 @@ const MainLayout = () => {
     window.location.href = '/';
   };
 
-  // Mapping Icon phong phú hơn
+  // Mapping Icon
   const getCategoryIcon = (code) => {
       const c = code?.toUpperCase();
       switch (c) {
@@ -148,7 +147,7 @@ const MainLayout = () => {
             <img src="/assets/logo.png" alt="Logo" style={{ width: collapsed ? 30 : 36, height: 'auto', transition: 'all 0.2s' }} />
             {!collapsed && (
               <div style={{ marginLeft: 12, lineHeight: 1.2 }}>
-                 <div style={{ color: 'white', fontWeight: 'bold', fontSize: 16, letterSpacing: '0.5px' }}>STAFF<span style={{ color: '#1890ff' }}>HUB</span></div>
+                 <div style={{ color: 'white', fontWeight: 'bold', fontSize: 16, letterSpacing: '0.5px' }}>PI VINA<span style={{ color: '#1890ff' }}>DANANG</span></div>
                  <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10, letterSpacing: '1px' }}>MANAGEMENT</div>
               </div>
             )}
