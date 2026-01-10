@@ -1,0 +1,71 @@
+/* frontend/src/components/layout/MainLayout.css */
+
+/* --- PHONG CÁCH 1: ENTERPRISE NAVY (XANH ĐEN CHUYÊN NGHIỆP) --- */
+
+:root {
+  --sidebar-bg: #001529;            /* Xanh đen đậm (Màu chuẩn Enterprise) */
+  --sidebar-border: transparent;    /* Không cần viền vì nền đã tối */
+  
+  --menu-item-hover-bg: #1890ff;    /* Màu nền xanh sáng khi chọn */
+  --primary-color: #ffffff;         /* Chữ khi chọn đổi thành Trắng */
+  --text-normal: rgba(255, 255, 255, 0.65); /* Chữ thường màu xám nhạt */
+  
+  --text-group-title: rgba(255, 255, 255, 0.45); /* Tiêu đề nhóm mờ hơn */
+  --scrollbar-thumb: #434343;       /* Thanh cuộn màu tối */
+}
+
+/* 2. SIDEBAR STYLES */
+.modern-sider { 
+  background: var(--sidebar-bg) !important; 
+  box-shadow: 2px 0 6px rgba(0, 21, 41, 0.35); /* Bóng đổ nhẹ để nổi bật */
+}
+
+/* 3. MENU CUSTOMIZATION (Ép kiểu cho theme Light thành Dark) */
+
+.ant-menu-light { 
+  background: transparent !important; 
+}
+
+/* Chữ mặc định (Chưa chọn) */
+.ant-menu-light .ant-menu-item,
+.ant-menu-light .ant-menu-submenu-title {
+  color: var(--text-normal) !important;
+}
+
+/* Trạng thái Hover (Di chuột) */
+.ant-menu-light .ant-menu-item:hover,
+.ant-menu-light .ant-menu-submenu-title:hover {
+  color: #ffffff !important;
+}
+
+/* Trạng thái Đang chọn (Active) */
+.ant-menu-light .ant-menu-item-selected {
+  background-color: var(--menu-item-hover-bg) !important;
+  color: var(--primary-color) !important;
+  border-radius: 4px !important; /* Bo góc vuông hơn chút cho mạnh mẽ */
+  margin-left: 8px !important; 
+  margin-right: 8px !important;
+  width: calc(100% - 16px) !important;
+  font-weight: 600;
+}
+
+/* Tiêu đề nhóm (Group Title) */
+.ant-menu-light .ant-menu-item-group-title {
+  color: var(--text-group-title) !important;
+  font-size: 11px !important; 
+  letter-spacing: 1.5px; 
+  margin-top: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255,255,255,0.05); /* Đường gạch mờ ngăn cách */
+  padding-bottom: 5px;
+  margin-bottom: 5px;
+}
+
+/* 4. SCROLLBAR */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { 
+  background: var(--scrollbar-thumb); 
+  border-radius: 4px; 
+}

@@ -16,7 +16,8 @@ const UserManager = () => {
   const currentUser = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
   
   // 2. Define administrative permission
-  const canEdit = PERMISSIONS.IS_ADMIN(currentUser.role);
+  // [CẬP NHẬT] Đổi từ IS_ADMIN thành IS_SYSTEM_ADMIN
+  const canEdit = PERMISSIONS.IS_SYSTEM_ADMIN(currentUser.role);
 
   // --- FETCH DATA ---
   const fetchData = async () => {
@@ -116,7 +117,7 @@ const UserManager = () => {
         const r = role ? role.toUpperCase() : 'USER';
 
         if (r === 'ADMIN') color = 'red';
-        else if (r === 'MANAGER' || r === 'IT') color = 'gold';
+        else if (r === 'MANAGER') color = 'gold'; // Đã xóa IT
         else if (r === 'HR') color = 'purple';
         else if (r === 'STAFF') color = 'cyan';
 
@@ -206,7 +207,8 @@ const UserManager = () => {
           <Form.Item name="role" label="System Role" rules={[{required: true}]} initialValue="Staff">
             <Select
                 options={[
-                    { value: 'Admin', label: 'Admin (Full System Control)' },
+                    // [CẬP NHẬT] Xóa role IT ảo, chỉ để lại 4 role chuẩn
+                    { value: 'Admin', label: 'Admin (System Owner / IT)' },
                     { value: 'Manager', label: 'Manager' },
                     { value: 'HR', label: 'HR (Personnel Management)' },
                     { value: 'Staff', label: 'Staff (Read-only / Operation)' },

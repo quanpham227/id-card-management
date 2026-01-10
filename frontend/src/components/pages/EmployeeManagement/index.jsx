@@ -33,11 +33,12 @@ const EmployeeManagement = () => {
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
 
-  // 2. PHÂN QUYỀN (SỬA LẠI CHUẨN)
+  // 2. PHÂN QUYỀN (ĐÃ CẬP NHẬT CHUẨN)
   const user = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
   
-  // Quyền In ấn & Thao tác (Admin, Manager, HR -> True | Staff -> False)
-  const canPrint = PERMISSIONS.CAN_OPERATE(user.role);
+  // [QUAN TRỌNG] Đổi tên hàm cho khớp với permissions.js mới
+  // canManage = true (HR/Admin/IT/Manager) | false (Staff)
+  const canManage = PERMISSIONS.CAN_MANAGE_HR_DATA(user.role);
 
   // Fetch Data
   const fetchData = async (isManualRefresh = false) => {
@@ -81,9 +82,9 @@ const EmployeeManagement = () => {
     });
   }, [employees, searchText, viewStatus, dateRange]);
 
-  // 3. ẨN CHECKBOX NẾU KHÔNG CÓ QUYỀN IN
-  // Nếu canPrint = false (Staff) -> rowSelection = null (Không hiện ô tích)
-  const rowSelection = canPrint ? {
+  // 3. ẨN CHECKBOX NẾU KHÔNG CÓ QUYỀN QUẢN LÝ
+  // Nếu Staff (canManage = false) -> Không hiện ô tích chọn
+  const rowSelection = canManage ? {
     selectedRowKeys,
     onChange: (newKeys, newRows) => {
       setSelectedRowKeys(newKeys);
@@ -121,8 +122,8 @@ const EmployeeManagement = () => {
         onRefresh={() => fetchData(true)} 
         loading={loading}
         
-        // 4. TRUYỀN QUYỀN IN XUỐNG HEADER (Để ẩn nút In hàng loạt)
-        canPrint={canPrint} 
+        // 4. TRUYỀN QUYỀN XUỐNG HEADER (Để ẩn nút In hàng loạt)
+        canPrint={canManage} 
       />
       
       <EmployeeTable 
@@ -131,12 +132,12 @@ const EmployeeManagement = () => {
         onPrint={handleOpenPrint}
         rowSelection={rowSelection}
         
-        // 5. TRUYỀN QUYỀN IN XUỐNG TABLE (Để ẩn nút In lẻ từng dòng)
-        canPrint={canPrint}
+        // 5. TRUYỀN QUYỀN XUỐNG TABLE (Để ẩn nút In lẻ/Sửa/Xóa)
+        canPrint={canManage}
       />
 
-      {/* Chỉ render Modal nếu có quyền (thêm lớp bảo vệ) */}
-      {canPrint && (
+      {/* Chỉ render Modal nếu có quyền (lớp bảo vệ thứ 2) */}
+      {canManage && (
         <>
             <PrintModal 
                 open={isPrintModalOpen}

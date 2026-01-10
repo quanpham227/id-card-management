@@ -14,7 +14,9 @@ const { Title, Text } = Typography;
 const PrintToolsPage = () => {
   // --- AUTH & PERMISSIONS ---
   const user = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
-  const canPrint = PERMISSIONS.CAN_OPERATE(user.role);
+  
+  // [CẬP NHẬT] Dùng CAN_MANAGE_HR_DATA thay vì CAN_OPERATE
+  const canPrint = PERMISSIONS.CAN_MANAGE_HR_DATA(user.role);
 
   const [selectedTemplateId, setSelectedTemplateId] = useState(CARD_TEMPLATES[0].id);
   const [cardNumber, setCardNumber] = useState(1);
@@ -28,13 +30,14 @@ const PrintToolsPage = () => {
   // --- SAVE PRINT HISTORY ---
   const handleSavePrintHistory = async () => {
     if (!canPrint) return; // Bảo vệ thêm lớp logic
-    // 2. [THÊM MỚI] Nếu là mặt sau (Back Side) thì thoát luôn, không lưu log
+    
+    // Nếu là mặt sau (Back Side) thì thoát luôn, không lưu log
     if (isBackSide) {
-        
         return; 
     }
     try {
-      const API_URL = import.meta.env.VITE_API_URL || '';
+      // Sửa lại cách lấy API_URL cho an toàn
+      const API_URL = import.meta.env.VITE_API_URL || ''; 
       const payload = {
         card_type: currentTemplate.name,
         serial_number: isBackSide ? "N/A" : cardNumber.toString(),

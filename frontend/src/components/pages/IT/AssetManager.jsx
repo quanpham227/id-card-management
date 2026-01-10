@@ -12,7 +12,7 @@ import AssetHeader from './AssetHeader';
 import AssetHistoryDrawer from './AssetHistoryDrawer';
 
 import { useEmployees } from '../../../context/useEmployees';
-import { PERMISSIONS } from '../../utils/permissions';
+import { PERMISSIONS } from '../../utils/permissions'; // [QUAN TRỌNG]
 
 const AssetManager = ({ defaultType }) => {
   const { employees, fetchEmployees } = useEmployees();
@@ -32,7 +32,11 @@ const AssetManager = ({ defaultType }) => {
   const [viewingAsset, setViewingAsset] = useState(null);
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const canEditAsset = PERMISSIONS.IS_ADMIN(user.role);
+  
+  // [CẬP NHẬT 1] Sử dụng quyền CAN_MANAGE_ASSETS thay vì IS_ADMIN cũ
+  // Admin (IT) -> true
+  // Manager/HR/Staff -> false (Chỉ xem)
+  const canEditAsset = PERMISSIONS.CAN_MANAGE_ASSETS(user.role);
 
   // --- API CALLS ---
   useEffect(() => { 
@@ -79,18 +83,17 @@ const AssetManager = ({ defaultType }) => {
     }
   };
 
-  // --- [QUAN TRỌNG] LOGIC LỌC DỮ LIỆU 2 TẦNG ---
+  // --- LOGIC LỌC DỮ LIỆU ---
   const safeAssets = Array.isArray(assets) ? assets : [];
 
-  // TẦNG 1: Lọc theo Category (Dùng để hiển thị Stats đúng theo trang hiện tại)
+  // TẦNG 1: Lọc theo Category 
   const assetsByCategory = safeAssets.filter(item => {
       if (defaultType && item.category?.code !== defaultType) return false;
       return true;
   });
 
-  // TẦNG 2: Lọc chi tiết (Status + Search) để hiển thị Bảng
+  // TẦNG 2: Lọc chi tiết 
   const filteredAssets = assetsByCategory.filter(item => {
-    // Lọc theo Status (từ click thẻ Stats)
     if (filterStatus) {
         if (filterStatus === 'CRITICAL') {
             if (item.health_status !== 'Critical') return false;
@@ -99,7 +102,6 @@ const AssetManager = ({ defaultType }) => {
         }
     }
     
-    // Lọc theo Search Text
     if (!searchText) return true;
     const kw = searchText.toLowerCase();
     return (
@@ -111,7 +113,14 @@ const AssetManager = ({ defaultType }) => {
   });
 
   // --- ACTIONS ---
+
   const handleDelete = async (id) => {
+    // [CẬP NHẬT 2] Bảo vệ function (Defense in Depth)
+    if (!canEditAsset) {
+        message.error("Access denied: You don't have permission to delete assets.");
+        return;
+    }
+
     try {
       await axiosClient.delete(`/assets/${id}`);
       message.success("Deleted successfully");
@@ -122,6 +131,12 @@ const AssetManager = ({ defaultType }) => {
   };
 
   const handleSave = async (values) => {
+    // [CẬP NHẬT 3] Bảo vệ function
+    if (!canEditAsset) {
+        message.error("Access denied: You don't have permission to modify assets.");
+        return;
+    }
+
     setSubmitting(true);
     try {
       let assignedUserObject = null;
@@ -189,6 +204,7 @@ const AssetManager = ({ defaultType }) => {
 
   // --- EXPORT / IMPORT ---
   const handleExportExcel = () => {
+    // Export thì ai xem được cũng export được (theo permissions.js là Admin/Manager)
     if (filteredAssets.length === 0) {
         message.warning("No data to export");
         return;
@@ -234,6 +250,12 @@ const AssetManager = ({ defaultType }) => {
   };
 
   const handleImportExcel = (file) => {
+    // [CẬP NHẬT 4] Bảo vệ function Import
+    if (!canEditAsset) {
+        message.error("Access denied: Only Admin can import data.");
+        return;
+    }
+
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
@@ -335,8 +357,6 @@ const AssetManager = ({ defaultType }) => {
   return (
     <div style={{ padding: '0 4px' }}>
       
-      {/* [SỬA] Truyền assetsByCategory (Đã lọc theo loại) vào AssetStats */}
-      {/* Như vậy, nếu đang ở trang PC, nó chỉ thống kê PC */}
       <AssetStats 
           assets={assetsByCategory} 
           categories={categories} 
@@ -344,23 +364,24 @@ const AssetManager = ({ defaultType }) => {
           onFilterChange={setFilterStatus}
       />
 
-      {/* Header và Table vẫn dùng filteredAssets (Đã lọc loại + lọc status) */}
       <AssetHeader 
         defaultType={defaultType}
         filteredCount={filteredAssets.length}
         onSearch={setSearchText}
+        // Nút Add/Import sẽ bị ẩn/disable bên trong AssetHeader dựa trên prop canEdit
         onAdd={() => { setEditingAsset(null); setIsModalOpen(true); }}
         onReload={loadAssetsData}
         onExport={handleExportExcel}
         onImport={handleImportExcel}
         loading={loading}
-        canEdit={canEditAsset}
+        canEdit={canEditAsset} 
       />
 
       <AssetTable 
         assets={filteredAssets}
         loading={loading}
         canEdit={canEditAsset}
+        // Nút Edit/Delete sẽ bị ẩn bên trong AssetTable dựa trên prop canEdit
         onEdit={(record) => { setEditingAsset(record); setIsModalOpen(true); }}
         onDelete={handleDelete}
         onViewHistory={handleViewHistory} 

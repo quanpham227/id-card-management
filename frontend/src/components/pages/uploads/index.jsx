@@ -22,10 +22,11 @@ const UploadPage = () => {
   // --- 1. AUTH & CONFIG ---
   const user = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
   
-  // Kiểm tra quyền (Admin, Manager, HR -> canUpload = true)
-  const canUpload = PERMISSIONS.CAN_OPERATE(user.role);
+  // [CẬP NHẬT] Đổi tên hàm từ CAN_OPERATE thành CAN_MANAGE_HR_DATA cho khớp với file permissions mới
+  const canUpload = PERMISSIONS.CAN_MANAGE_HR_DATA(user.role);
   
-const API_URL = import.meta.env.VITE_API_URL || '';
+  const API_URL = import.meta.env.VITE_API_URL || '';
+
   // --- 2. UPLOAD PROPS CONFIG ---
   const uploadProps = useMemo(() => ({
     name: 'files', 
