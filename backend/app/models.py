@@ -1,7 +1,18 @@
-from sqlalchemy import Column, Integer, String, Date, ForeignKey, Text, Boolean, JSON, DateTime
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Date,
+    ForeignKey,
+    Text,
+    Boolean,
+    JSON,
+    DateTime,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
+
 
 # --- [MỚI] BẢNG DANH MỤC THIẾT BỊ ---
 class AssetCategory(Base):
@@ -9,9 +20,9 @@ class AssetCategory(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)  # Ví dụ: "Laptop", "PC"
-    code = Column(String, unique=True)              # Ví dụ: "LPT", "PC"
+    code = Column(String, unique=True)  # Ví dụ: "LPT", "PC"
     description = Column(Text, nullable=True)
-    
+
     # Quan hệ 1-nhiều: Một Category có nhiều Asset
     assets = relationship("Asset", back_populates="category")
 
@@ -22,18 +33,18 @@ class Asset(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     asset_code = Column(String, unique=True, index=True)
-    
+
     # [SỬA ĐỔI]: Thay cột type (String) bằng Foreign Key trỏ tới categories
     # Lưu ý: Cột type cũ vẫn có thể giữ lại làm 'backup' hoặc xóa đi nếu migrate dữ liệu
     # Ở đây mình thêm cột mới category_id
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
-    
+
     # Nếu muốn giữ lại cột type để tương thích code cũ trong thời gian chuyển đổi
-    # type = Column(String, nullable=True) 
+    # type = Column(String, nullable=True)
 
     model = Column(String)
     health_status = Column(String, default="Good")
-    usage_status = Column(String, default="Spare") # In Use, Spare, Broken
+    usage_status = Column(String, default="Spare")  # In Use, Spare, Broken
     purchase_date = Column(Date, nullable=True)
     notes = Column(Text, nullable=True)
 
@@ -41,12 +52,14 @@ class Asset(Base):
     specs = Column(JSON, nullable=True)
     software = Column(JSON, nullable=True)
     monitor = Column(JSON, nullable=True)
-    
+
     # Thông tin người đang dùng
-    assigned_to = Column(JSON, nullable=True) 
+    assigned_to = Column(JSON, nullable=True)
 
     # Mối quan hệ
-    history_logs = relationship("AssetHistory", back_populates="asset", cascade="all, delete-orphan")
+    history_logs = relationship(
+        "AssetHistory", back_populates="asset", cascade="all, delete-orphan"
+    )
     category = relationship("AssetCategory", back_populates="assets")
 
 
@@ -56,11 +69,11 @@ class AssetHistory(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     asset_id = Column(Integer, ForeignKey("assets.id"))
-    
-    date = Column(Date, default=func.now())  
-    action_type = Column(String)             
-    description = Column(Text)               
-    performed_by = Column(String)            
+
+    date = Column(Date, default=func.now())
+    action_type = Column(String)
+    description = Column(Text)
+    performed_by = Column(String)
 
     asset = relationship("Asset", back_populates="history_logs")
 
@@ -70,13 +83,14 @@ class PrintLog(Base):
     __tablename__ = "print_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    employee_id = Column(String, index=True) 
-    employee_name = Column(String)           
+    employee_id = Column(String, index=True)
+    employee_name = Column(String)
     department = Column(String)
     job_title = Column(String, nullable=True)
     printed_at = Column(DateTime, default=func.now())
     printed_by = Column(String, default="Admin")
     reason = Column(String, default="New Issue")
+
 
 class ToolPrintLog(Base):
     __tablename__ = "tool_print_logs"
@@ -108,36 +122,32 @@ class Ticket(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True)
     description = Column(Text)
-    
-    # Phân loại: Hardware, Software, Network...
-    category = Column(String) 
-    
-    # Mức độ: Low, Medium, High, Critical
-    priority = Column(String, default="Medium") 
-    
-    # Trạng thái: Open, In Progress, Resolved, Closed, Cancelled
+
+    # 1. Liên kết tới TicketCategory (Ví dụ: Lỗi phần mềm, Lỗi mạng)
+    category_id = Column(Integer, ForeignKey("ticket_categories.id"))
+
+    # 2. Liên kết tới Asset (Thiết bị cụ thể đang bị hỏng)
+    asset_id = Column(Integer, ForeignKey("assets.id"), nullable=True)
+
+    priority = Column(String, default="2")  # Lưu "1", "2", "3", "4" dạng chuỗi
     status = Column(String, default="Open", index=True)
-    
-    # File đính kèm (Lưu dạng JSON list đường dẫn file)
     attachments = Column(JSON, nullable=True)
 
-    # Thời gian
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     resolved_at = Column(DateTime, nullable=True)
 
-    # Người tạo yêu cầu (Requester)
     requester_id = Column(Integer, ForeignKey("users.id"))
-    
-    # Người xử lý (Assignee - IT/Admin)
     assignee_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
-    # Quan hệ
+    # Quan hệ (Relationships)
     requester = relationship("User", foreign_keys=[requester_id])
     assignee = relationship("User", foreign_keys=[assignee_id])
-    
-    # Quan hệ tới các comment/log
-    comments = relationship("TicketComment", back_populates="ticket", cascade="all, delete-orphan")
+    ticket_category = relationship("TicketCategory")  # Quan hệ tới loại sự cố
+    asset = relationship("Asset")  # Quan hệ tới thiết bị
+    comments = relationship(
+        "TicketComment", back_populates="ticket", cascade="all, delete-orphan"
+    )
 
 
 class TicketComment(Base):
@@ -145,13 +155,13 @@ class TicketComment(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     ticket_id = Column(Integer, ForeignKey("tickets.id"))
-    user_id = Column(Integer, ForeignKey("users.id")) # Người comment
-    
+    user_id = Column(Integer, ForeignKey("users.id"))  # Người comment
+
     content = Column(Text)
     created_at = Column(DateTime, default=func.now())
-    
+
     # Loại: 'Comment' (Trao đổi), 'System' (Log đổi trạng thái), 'Internal' (Ghi chú nội bộ IT)
-    type = Column(String, default="Comment") 
+    type = Column(String, default="Comment")
 
     ticket = relationship("Ticket", back_populates="comments")
     user = relationship("User")
@@ -162,8 +172,8 @@ class TicketCategory(Base):
     __tablename__ = "ticket_categories"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True) # Ví dụ: Hardware, Software
-    code = Column(String, unique=True)             # Ví dụ: HW, SW
+    name = Column(String, unique=True, index=True)  # Ví dụ: Hardware, Software
+    code = Column(String, unique=True)  # Ví dụ: HW, SW
     description = Column(String, nullable=True)
-    sla_hours = Column(Integer, default=24)        # Cam kết xử lý trong bao lâu
-    is_active = Column(Boolean, default=True)      # True: Đang dùng, False: Tạm ẩn
+    sla_hours = Column(Integer, default=24)  # Cam kết xử lý trong bao lâu
+    is_active = Column(Boolean, default=True)  # True: Đang dùng, False: Tạm ẩn

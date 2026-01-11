@@ -1,244 +1,298 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  Card, Form, Input, Select, Button, Upload, 
-  message, Typography, Row, Col, Alert, Divider 
+import React, { useState, useEffect } from 'react';
+import {
+  Card,
+  Form,
+  Input,
+  Button,
+  Select,
+  Upload,
+  message,
+  Row,
+  Col,
+  Typography,
+  Space,
+  Divider,
+  Tag,
 } from 'antd';
-import { 
-  InboxOutlined, SendOutlined, InfoCircleOutlined, 
-  DesktopOutlined, WifiOutlined, SaveOutlined 
-} from '@ant-design/icons';
-import axiosClient from '../../../api/axiosClient';
+import { UploadOutlined, SendOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import axiosClient from '../../../api/axiosClient';
+import { PRIORITY_LEVELS } from '../../../constants/constants';
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
-const { Dragger } = Upload;
 const { Option } = Select;
+const { TextArea } = Input;
 
 const CreateTicket = () => {
-  const [form] = Form.useForm();
   const navigate = useNavigate();
-  
+  const [form] = Form.useForm();
+
+  // States
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Data State
+  const [categories, setCategories] = useState([]);
+  const [assets, setAssets] = useState([]);
   const [fileList, setFileList] = useState([]);
 
-  // Get current user info for display purposes
-  const user = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
+  // --- 1. Fetch Categories & Assets ---
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [catRes, assetRes] = await Promise.all([
+          axiosClient.get('/ticket-categories?active_only=true'),
+          axiosClient.get('/assets'),
+        ]);
+        setCategories(Array.isArray(catRes) ? catRes : catRes.data || []);
+        setAssets(Array.isArray(assetRes) ? assetRes : assetRes.data || []);
+      } catch (error) {
+        console.error('Fetch error:', error);
+        message.warning('Could not load full system data. Some options may be limited.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
-  // Static Categories (Or you can fetch from API /admin/categories)
-  const TICKET_CATEGORIES = [
-    { value: 'Hardware', label: 'Hardware Issue (PC, Laptop, Printer)', icon: <DesktopOutlined /> },
-    { value: 'Software', label: 'Software / OS / License', icon: <SaveOutlined /> },
-    { value: 'Network', label: 'Network / Internet / WiFi', icon: <WifiOutlined /> },
-    { value: 'Access', label: 'Account Access / Email / Password', icon: <InfoCircleOutlined /> },
-    { value: 'Other', label: 'Other Request', icon: <InfoCircleOutlined /> },
-  ];
-
-  const PRIORITIES = [
-    { value: 'Low', label: 'Low - No urgency', color: 'green' },
-    { value: 'Medium', label: 'Medium - Affects work partially', color: 'blue' },
-    { value: 'High', label: 'High - Cannot work', color: 'orange' },
-    { value: 'Critical', label: 'Critical - System wide failure', color: 'red' },
-  ];
-
-  // Handle File Upload Change
-  const handleFileChange = ({ fileList: newFileList }) => {
-    // Limit to 3 files
-    setFileList(newFileList.slice(-3));
+  // --- 2. Helper: Safe Error Message ---
+  const getErrorMessage = (error) => {
+    if (!error.response) return 'Connection error. Please check your network.';
+    const { detail } = error.response.data || {};
+    if (Array.isArray(detail)) return `Validation Error: ${detail[0].msg}`;
+    return typeof detail === 'string' ? detail : 'An unexpected error occurred.';
   };
 
+  // --- 3. Image Validation & Handling ---
+  const beforeUpload = (file) => {
+    const isImage = file.type.startsWith('image/');
+    if (!isImage) {
+      message.error(`${file.name} is not an image file!`);
+      return Upload.LIST_IGNORE;
+    }
+
+    const isLt5M = file.size / 1024 / 1024 < 5;
+    if (!isLt5M) {
+      message.error(`Image ${file.name} must be smaller than 5MB!`);
+      return Upload.LIST_IGNORE;
+    }
+
+    return false; // Chặn auto-upload
+  };
+
+  const handleUploadChange = ({ fileList: newFileList }) => {
+    setFileList(newFileList);
+  };
+
+  // --- 4. Form Submission ---
   const onFinish = async (values) => {
-    setLoading(true);
+    setSubmitting(true);
     try {
-      // Use FormData for file upload support
-      const formData = new FormData();
-      
-      formData.append('title', values.subject);
-      formData.append('description', values.description);
-      formData.append('category', values.category);
-      formData.append('priority', values.priority);
-      
-      // Append files
-      fileList.forEach(file => {
-        if (file.originFileObj) {
-            formData.append('files', file.originFileObj);
-        }
-      });
+      let attachmentUrls = '';
 
-      // API Call
-      await axiosClient.post('/tickets', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      // Step A: Upload Images
+      if (fileList.length > 0) {
+        const formData = new FormData();
+        fileList.forEach((fileItem) => {
+          if (fileItem.originFileObj) {
+            formData.append('files', fileItem.originFileObj);
+          }
+        });
 
-      message.success('Ticket created successfully! IT Team has been notified.');
-      
-      // Reset form and redirect
-      form.resetFields();
-      setFileList([]);
-      navigate('/tickets/my-tickets'); // Redirect to My Tickets list
-      
+        const uploadRes = await axiosClient.post('/ticket-upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        attachmentUrls = (uploadRes.data?.filenames || []).join(',');
+      }
+
+      // Step B: Post Ticket Data
+      const payload = {
+        title: values.title,
+        description: values.description,
+        priority: Number(values.priority), // Gửi số 1, 2, 3, 4
+        category_id: Number(values.category_id),
+        asset_id: values.asset_id ? Number(values.asset_id) : null,
+        attachment_url: attachmentUrls,
+      };
+
+      await axiosClient.post('/tickets', payload);
+      message.success('Ticket submitted successfully!');
+      navigate('/tickets/my-tickets');
     } catch (error) {
-      console.error(error);
-      const errorMsg = error.response?.data?.detail || "Failed to create ticket.";
-      message.error(errorMsg);
+      message.error(getErrorMessage(error));
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto' }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2}>Submit a Support Ticket</Title>
-        <Text type="secondary">
-          Please describe your issue in detail. Our IT team will respond as soon as possible.
-        </Text>
-      </div>
+    <div className="layout-content" style={{ maxWidth: 800, margin: '20px auto' }}>
+      <Card
+        variant="borderless"
+        style={{ borderRadius: 12, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
+      >
+        <div style={{ textAlign: 'center', marginBottom: 30 }}>
+          <Title level={2}>Create Support Ticket</Title>
+          <Text type="secondary">Please provide accurate information for faster resolution.</Text>
+        </div>
 
-      <Row gutter={[24, 24]}>
-        {/* LEFT COLUMN: FORM */}
-        <Col xs={24} lg={16}>
-          <Card 
-            variant="borderless" 
-            style={{ borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={onFinish}
+          initialValues={{ priority: 2 }}
+          disabled={loading || submitting}
+          requiredMark="optional"
+        >
+          {/* Subject Line */}
+          <Form.Item
+            name="title"
+            label={<Text strong>Subject</Text>}
+            rules={[{ required: true, message: 'Please enter a brief subject' }]}
           >
-            <Form 
-              form={form} 
-              layout="vertical" 
-              onFinish={onFinish}
-              initialValues={{ priority: 'Medium' }}
-            >
-              {/* 1. Subject */}
-              <Form.Item 
-                name="subject" 
-                label="Subject / Title" 
-                rules={[{ required: true, message: 'Please enter a subject' }]}
+            <Input placeholder="Short summary (e.g., VPN connection failed)" size="large" />
+          </Form.Item>
+
+          <Row gutter={16}>
+            {/* Category selection */}
+            <Col span={12} xs={24} sm={12}>
+              <Form.Item
+                name="category_id"
+                label={<Text strong>Category</Text>}
+                rules={[{ required: true, message: 'Please select an issue category' }]}
               >
-                <Input placeholder="e.g., Printer on 2nd floor is not working" size="large" />
+                <Select placeholder="Select issue type" size="large">
+                  {categories.map((cat) => (
+                    <Option key={cat.id} value={cat.id}>
+                      {cat.name}{' '}
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        ({cat.sla_hours}h SLA)
+                      </Text>
+                    </Option>
+                  ))}
+                </Select>
               </Form.Item>
+            </Col>
 
-              <Row gutter={16}>
-                {/* 2. Category */}
-                <Col xs={24} md={12}>
-                  <Form.Item 
-                    name="category" 
-                    label="Category" 
-                    rules={[{ required: true, message: 'Please select a category' }]}
-                  >
-                    <Select placeholder="Select Issue Type" size="large">
-                      {TICKET_CATEGORIES.map(cat => (
-                        <Option key={cat.value} value={cat.value}>
-                           <span style={{ marginRight: 8 }}>{cat.icon}</span> {cat.label}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
-
-                {/* 3. Priority */}
-                <Col xs={24} md={12}>
-                  <Form.Item name="priority" label="Priority Level">
-                    <Select size="large">
-                      {PRIORITIES.map(p => (
-                        <Option key={p.value} value={p.value}>
-                          <span style={{ color: p.color, fontWeight: 'bold' }}>•</span> {p.label}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              {/* 4. Description */}
-              <Form.Item 
-                name="description" 
-                label="Detailed Description" 
-                rules={[{ required: true, message: 'Please describe the issue' }]}
+            {/* Priority level - ĐÃ FIX: Thêm Form.Item bao quanh */}
+            <Col span={12} xs={24} sm={12}>
+              <Form.Item
+                name="priority"
+                label={<Text strong>Priority</Text>}
+                rules={[{ required: true }]}
               >
-                <TextArea 
-                  rows={6} 
-                  placeholder="Describe what happened, error messages, steps to reproduce..." 
-                  showCount 
-                  maxLength={1000} 
-                />
+                <Select size="large">
+                  {Object.entries(PRIORITY_LEVELS).map(([value, info]) => (
+                    <Option key={value} value={Number(value)}>
+                      <Tag color={info.color}>{info.label}</Tag> - {info.desc}
+                    </Option>
+                  ))}
+                </Select>
               </Form.Item>
+            </Col>
+          </Row>
 
-              {/* 5. Attachments */}
-              <Form.Item label="Attachments (Screenshots/Logs)">
-                <Dragger 
-                  fileList={fileList}
-                  onChange={handleFileChange}
-                  beforeUpload={() => false} // Prevent auto upload, send with form
-                  multiple
-                  maxCount={3}
-                  listType="picture"
-                >
-                  <p className="ant-upload-drag-icon">
-                    <InboxOutlined style={{ color: '#1890ff' }} />
-                  </p>
-                  <p className="ant-upload-text">Click or drag file to this area to upload</p>
-                  <p className="ant-upload-hint">
-                    Support for a single or bulk upload. Strictly prohibited from uploading company data files.
-                  </p>
-                </Dragger>
-              </Form.Item>
-
-              <Divider />
-
-              <Form.Item>
-                <Button 
-                  type="primary" 
-                  htmlType="submit" 
-                  icon={<SendOutlined />} 
-                  size="large" 
-                  loading={loading}
-                  block
-                >
-                  Submit Ticket
-                </Button>
-              </Form.Item>
-            </Form>
-          </Card>
-        </Col>
-
-        {/* RIGHT COLUMN: INFO & GUIDELINE */}
-        <Col xs={24} lg={8}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            
-            {/* User Info Card */}
-            <Card title="Requester Info" size="small" style={{ borderRadius: 8 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div><Text type="secondary">Full Name:</Text> <br/><Text strong>{user.full_name}</Text></div>
-                <div><Text type="secondary">Department:</Text> <br/><Text strong>{user.department || 'N/A'}</Text></div>
-                <div><Text type="secondary">Email:</Text> <br/><Text copyable>{user.email || user.username}</Text></div>
-              </div>
-            </Card>
-
-            {/* Quick Tips */}
-            <Alert
-              message="Tips for faster support"
-              description={
-                <ul style={{ paddingLeft: 16, margin: 0 }}>
-                  <li>Include screenshots of the error.</li>
-                  <li>Mention the specific Device ID (Asset Code).</li>
-                  <li>Is it affecting only you or the whole team?</li>
-                </ul>
+          {/* Related Asset selection */}
+          <Form.Item
+            name="asset_id"
+            label={<Text strong>Related Asset (Optional)</Text>}
+            tooltip="Search by Device Code or Employee ID"
+          >
+            <Select
+              placeholder="Search your device..."
+              allowClear
+              showSearch
+              size="large"
+              optionFilterProp="children"
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
               }
-              type="info"
-              showIcon
-              style={{ borderRadius: 8 }}
-            />
+            >
+              {assets.map((asset) => {
+                const assignee = asset.assigned_to || {};
+                const empId = assignee.employee_id || '---';
+                const empName = assignee.employee_name || 'Unassigned';
 
-            {/* SLA Info */}
-            <Card title="SLA Commitment" size="small" style={{ borderRadius: 8 }}>
-              <p><span style={{color: 'red'}}>● Critical:</span> Within 2 hours</p>
-              <p><span style={{color: 'orange'}}>● High:</span> Within 8 hours</p>
-              <p><span style={{color: 'blue'}}>● Medium:</span> Within 24 hours</p>
-              <p><span style={{color: 'green'}}>● Low:</span> Within 48 hours</p>
-            </Card>
+                return (
+                  <Option
+                    key={asset.id}
+                    value={asset.id}
+                    label={`${asset.asset_code} ${empId} ${empName}`}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <Tag color="cyan" style={{ minWidth: 85, textAlign: 'center' }}>
+                        {asset.asset_code}
+                      </Tag>
+                      <Text strong style={{ minWidth: 80, margin: '0 8px' }}>
+                        {empId}
+                      </Text>
+                      <span style={{ color: '#d9d9d9', margin: '0 8px' }}>|</span>
+                      <Text type="secondary" ellipsis title={empName}>
+                        {empName}
+                      </Text>
+                    </div>
+                  </Option>
+                );
+              })}
+            </Select>
+          </Form.Item>
+
+          {/* Detailed description */}
+          <Form.Item
+            name="description"
+            label={<Text strong>Detailed Description</Text>}
+            rules={[{ required: true, message: 'Please describe the issue' }]}
+          >
+            <TextArea
+              rows={5}
+              placeholder="What happened? Error messages?"
+              showCount
+              maxLength={1500}
+            />
+          </Form.Item>
+
+          {/* Attachments */}
+          <Form.Item
+            label={<Text strong>Image Attachments</Text>}
+            extra="Only JPG/PNG/WEBP images under 5MB are allowed."
+          >
+            <Upload
+              fileList={fileList}
+              beforeUpload={beforeUpload}
+              onChange={handleUploadChange}
+              multiple={true}
+              listType="picture-card"
+              accept="image/*"
+            >
+              <div>
+                <UploadOutlined />
+                <div style={{ marginTop: 8 }}>Upload Image</div>
+              </div>
+            </Upload>
+          </Form.Item>
+
+          <Divider />
+
+          {/* Form buttons */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+            <Button onClick={() => navigate(-1)} size="large" style={{ width: 120 }}>
+              Cancel
+            </Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              icon={<SendOutlined />}
+              loading={submitting}
+              size="large"
+              style={{ width: 180 }}
+            >
+              Submit Ticket
+            </Button>
           </div>
-        </Col>
-      </Row>
+        </Form>
+      </Card>
     </div>
   );
 };
