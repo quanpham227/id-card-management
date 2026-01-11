@@ -20,8 +20,12 @@
         margin-bottom: 15px;
       }
       @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
       }
       .loading-text {
         color: #666;
@@ -29,12 +33,12 @@
         font-weight: 500;
       }
     </style>
-    
+
     <div class="app-loading">
       <div class="spinner"></div>
       <div class="loading-text">Loading...</div>
     </div>
-    </div>
-  
+  </div>
+
   <script type="module" src="/src/main.jsx"></script>
 </body>
