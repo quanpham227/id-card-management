@@ -10,12 +10,12 @@ export const logPrintHistory = async (employeesList) => {
   if (!employeesList || employeesList.length === 0) return;
 
   // 1. Chuẩn hóa dữ liệu theo đúng Model Python (PrintLogRequest)
-  const payload = employeesList.map(emp => ({
+  const payload = employeesList.map((emp) => ({
     employee_id: emp.employee_id,
     employee_name: emp.employee_name,
     employee_type: emp.employee_type || 'Staff', // Mặc định Staff nếu thiếu
-    maternity_type: emp.maternity_type || '',    // Mặc định rỗng nếu thiếu
-    printed_at: new Date().toISOString()         // Thời gian hiện tại ISO 8601
+    maternity_type: emp.maternity_type || '', // Mặc định rỗng nếu thiếu
+    printed_at: new Date().toISOString(), // Thời gian hiện tại ISO 8601
   }));
 
   try {
@@ -31,13 +31,11 @@ export const logPrintHistory = async (employeesList) => {
     if (!response.ok) {
       throw new Error('Server returned error');
     }
-    
-
   } catch (error) {
     // 3. Xử lý lỗi "nhẹ nhàng" (Silent fail)
     // Log thất bại không nên làm gián đoạn trải nghiệm in của người dùng
-    console.error("Failed to log print history:", error);
-    
+    console.error('Failed to log print history:', error);
+
     // Chỉ hiện thông báo nhỏ góc màn hình, không chặn UI
     notification.warning({
       message: 'Cảnh báo hệ thống',
