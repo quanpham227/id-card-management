@@ -1,6 +1,6 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import App from './App.jsx'
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App.jsx';
 import './assets/styles/global.scss';
 
 // 1. Import ErrorBoundary (Đảm bảo đúng đường dẫn file bạn vừa tạo)
@@ -12,5 +12,5 @@ createRoot(document.getElementById('root')).render(
     <ErrorBoundary>
       <App />
     </ErrorBoundary>
-  </StrictMode>,
-)
+  </StrictMode>
+);

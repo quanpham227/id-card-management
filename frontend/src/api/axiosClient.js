@@ -5,7 +5,7 @@ import { message } from 'antd';
 // Create an Axios instance
 const axiosClient = axios.create({
   baseURL: '/api',
-  timeout: 30000, 
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -16,7 +16,7 @@ axiosClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
@@ -26,39 +26,35 @@ axiosClient.interceptors.request.use(
 // --- 2. INTERCEPTOR RESPONSE (ĐÃ SỬA) ---
 axiosClient.interceptors.response.use(
   (response) => {
-    return response; 
+    return response;
   },
   (error) => {
     const originalRequest = error.config; // Lấy thông tin request gốc
 
     if (error.response) {
       const { status } = error.response;
-      
+
       if (status === 401) {
         // [FIX LỖI QUAN TRỌNG]
         // Nếu lỗi 401 xảy ra khi đang gọi API login -> KHÔNG redirect, trả về lỗi để trang Login tự xử lý
         if (originalRequest.url && originalRequest.url.includes('/login')) {
-            return Promise.reject(error);
+          return Promise.reject(error);
         }
 
         // Trường hợp còn lại: Đang dùng app mà hết hạn Token -> Mới đá ra ngoài
         message.error('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        
+
         // Sửa thành '/' nếu trang Login của bạn là trang chủ
-        window.location.href = '/'; 
-      } 
-      else if (status === 403) {
+        window.location.href = '/';
+      } else if (status === 403) {
         message.error('Bạn không có quyền thực hiện thao tác này.');
-      } 
-      else if (status === 404) {
+      } else if (status === 404) {
         console.warn('Resource not found (404).');
-      } 
-      else if (status === 500) {
+      } else if (status === 500) {
         message.error('Lỗi máy chủ (500). Vui lòng liên hệ Admin.');
-      } 
-      else {
+      } else {
         message.error(error.response.data?.detail || 'Đã xảy ra lỗi.');
       }
     } else if (error.request) {

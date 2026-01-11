@@ -21,8 +21,8 @@ const Login = () => {
       // Lưu ý: Endpoint phải là '/api/login' (khớp với backend auth.py)
       const response = await axiosClient.post('/login', formData, {
         headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
       });
       // -----------------------------
 
@@ -32,19 +32,18 @@ const Login = () => {
 
       if (token) {
         message.success('Login successful!');
-        
+
         // 1. Lưu Token và User
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        
+
         // 2. Vào thẳng Dashboard
-        window.location.href = '/dashboard'; 
+        window.location.href = '/dashboard';
       } else {
         message.error('Error: No token received from server');
       }
-
     } catch (error) {
-      console.error("Login Error:", error);
+      console.error('Login Error:', error);
       // Xử lý thông báo lỗi đẹp hơn
       const msg = error.response?.data?.detail || 'Login failed. Please check your credentials.';
       message.error(msg);
@@ -54,15 +53,23 @@ const Login = () => {
   };
 
   return (
-    <div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f2f5' }}>
+    <div
+      style={{
+        height: '100vh',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#f0f2f5',
+      }}
+    >
       <Card style={{ width: 400, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
         <div style={{ textAlign: 'center', marginBottom: 30 }}>
-          <img 
-              src="/assets/logo.png" 
-              alt="Company Logo" 
-              style={{ width: 100, height: 'auto', objectFit: 'contain' }} 
-              onError={(e) => e.target.style.display = 'none'} 
-            />
+          <img
+            src="/assets/logo.png"
+            alt="Company Logo"
+            style={{ width: 100, height: 'auto', objectFit: 'contain' }}
+            onError={(e) => (e.target.style.display = 'none')}
+          />
           <Title level={3}>Internal Management System</Title>
         </div>
 

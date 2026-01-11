@@ -6,14 +6,18 @@ from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
+
 # --- 4. HELPER FUNCTIONS ---
 def load_json_file(filepath: str) -> List[dict]:
     try:
-        if not os.path.exists(filepath): return []
-        with open(filepath, "r", encoding="utf-8") as f: return json.load(f)
+        if not os.path.exists(filepath):
+            return []
+        with open(filepath, "r", encoding="utf-8") as f:
+            return json.load(f)
     except Exception as e:
         logger.error(f"Error reading {filepath}: {e}")
         return []
+
 
 def save_json_file(filepath: str, data: List[dict]):
     try:
