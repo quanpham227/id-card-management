@@ -16,33 +16,36 @@ const BulkPrintModal = ({ open, onClose, selectedEmployees = [] }) => {
   // --- 1. LOGIC KIỂM TRA DỮ LIỆU (VALIDATION) ---
   const validation = useMemo(() => {
     const missingPhoto = selectedEmployees.filter(
-      emp => !emp.employee_image || emp.employee_image.includes("N/A") || emp.employee_image.includes("undefined")
+      (emp) =>
+        !emp.employee_image ||
+        emp.employee_image.includes('N/A') ||
+        emp.employee_image.includes('undefined')
     );
-    const resigned = selectedEmployees.filter(emp => emp.employee_status !== 'Active');
-    
+    const resigned = selectedEmployees.filter((emp) => emp.employee_status !== 'Active');
+
     return {
       missingPhoto,
       resigned,
-      hasError: missingPhoto.length > 0 || resigned.length > 0
+      hasError: missingPhoto.length > 0 || resigned.length > 0,
     };
   }, [selectedEmployees]);
 
   // --- 2. CẤU HÌNH IN ---
   const triggerPrint = useReactToPrint({
-    contentRef: componentRef, 
+    contentRef: componentRef,
     documentTitle: `In_The_Nhan_Vien_${new Date().getTime()}`,
     onAfterPrint: () => {
-        // Có thể đóng modal sau khi in hoặc giữ lại để xem kết quả
+      // Có thể đóng modal sau khi in hoặc giữ lại để xem kết quả
     },
     pageStyle: `
       @page { margin: 0; size: auto; }
       body { margin: 0; -webkit-print-color-adjust: exact; }
-    `
+    `,
   });
 
   // --- 3. HÀM XỬ LÝ CHÍNH: IN & LƯU LOG ---
-// --- 3. HÀM XỬ LÝ CHÍNH: IN & LƯU LOG ---
-const handlePrintAndLog = async () => {
+  // --- 3. HÀM XỬ LÝ CHÍNH: IN & LƯU LOG ---
+  const handlePrintAndLog = async () => {
     if (!selectedEmployees.length) return;
 
     triggerPrint();
@@ -50,51 +53,50 @@ const handlePrintAndLog = async () => {
     try {
       const payload = {
         // Map từng nhân viên để tính lý do riêng biệt
-        employees: selectedEmployees.map(emp => {
-          
-          let calculatedReason = "normal";
-          const matType = (emp.maternity_type || "").toString().toLowerCase();
-          const status = (emp.status || "").toString().toLowerCase();
+        employees: selectedEmployees.map((emp) => {
+          let calculatedReason = 'normal';
+          const matType = (emp.maternity_type || '').toString().toLowerCase();
+          const status = (emp.status || '').toString().toLowerCase();
 
           // 1. Check Thai sản
-          const isPregnancy = 
-              emp.is_pregnancy == true || 
-              emp.is_pregnancy === 1 ||
-              matType.includes('pregnancy') || 
-              matType.includes('thai') ||
-              status.includes('thai');
+          const isPregnancy =
+            emp.is_pregnancy == true ||
+            emp.is_pregnancy === 1 ||
+            matType.includes('pregnancy') ||
+            matType.includes('thai') ||
+            status.includes('thai');
 
           // 2. Check Con nhỏ
-          const isHasBaby = 
-              emp.has_baby == true || 
-              emp.has_baby === 1 ||
-              matType.includes('baby') || 
-              matType.includes('con') ||
-              status.includes('con');
+          const isHasBaby =
+            emp.has_baby == true ||
+            emp.has_baby === 1 ||
+            matType.includes('baby') ||
+            matType.includes('con') ||
+            status.includes('con');
 
-          if (isPregnancy) calculatedReason = "pregnancy";
-          else if (isHasBaby) calculatedReason = "has_baby";
+          if (isPregnancy) calculatedReason = 'pregnancy';
+          else if (isHasBaby) calculatedReason = 'has_baby';
 
           return {
             employee_id: emp.employee_id,
             employee_name: emp.employee_name,
-            department: emp.employee_department || "",
-            job_title: emp.employee_position || "",
+            department: emp.employee_department || '',
+            job_title: emp.employee_position || '',
             // QUAN TRỌNG: Lý do của riêng nhân viên này
-            reason: calculatedReason 
+            reason: calculatedReason,
           };
         }),
-        
+
         // Lý do chung (Fallback)
-        reason: "normal", 
-        printed_by: JSON.parse(localStorage.getItem('user') || '{}').username || "Admin"
+        reason: 'normal',
+        printed_by: JSON.parse(localStorage.getItem('user') || '{}').username || 'Admin',
       };
 
       await axiosClient.post('/print/log', payload);
       message.success(`Đã cập nhật lịch sử in cho ${selectedEmployees.length} nhân viên.`);
     } catch (error) {
       console.error(error);
-      message.warning("Lỗi ghi log.");
+      message.warning('Lỗi ghi log.');
     } finally {
       setLoading(false);
     }
@@ -115,7 +117,6 @@ const handlePrintAndLog = async () => {
       styles={{ body: { padding: 0 } }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', height: '80vh' }}>
-        
         {/* THANH THÔNG BÁO CẢNH BÁO NẾU CÓ LỖI DỮ LIỆU */}
         {validation.hasError && (
           <Alert
@@ -123,9 +124,11 @@ const handlePrintAndLog = async () => {
             showIcon
             message={
               <Text strong>
-                Phát hiện dữ liệu không hợp lệ: 
-                {validation.missingPhoto.length > 0 && ` ${validation.missingPhoto.length} người thiếu ảnh;`}
-                {validation.resigned.length > 0 && ` ${validation.resigned.length} người đã nghỉ việc;`}
+                Phát hiện dữ liệu không hợp lệ:
+                {validation.missingPhoto.length > 0 &&
+                  ` ${validation.missingPhoto.length} người thiếu ảnh;`}
+                {validation.resigned.length > 0 &&
+                  ` ${validation.resigned.length} người đã nghỉ việc;`}
               </Text>
             }
             description="Các thẻ thiếu ảnh sẽ in ra phôi trắng ở phần hình ảnh. Vui lòng kiểm tra kỹ."
@@ -136,24 +139,24 @@ const handlePrintAndLog = async () => {
         {/* KHU VỰC XEM TRƯỚC (PREVIEW) */}
         <div style={{ flex: 1, overflowY: 'auto', background: '#525659', padding: '30px' }}>
           {selectedEmployees.length === 0 ? (
-             <div style={{ background: '#fff', padding: 60, borderRadius: 8, textAlign: 'center' }}>
-                <Empty description="Không có nhân viên nào trong danh sách in" />
-             </div>
+            <div style={{ background: '#fff', padding: 60, borderRadius: 8, textAlign: 'center' }}>
+              <Empty description="Không có nhân viên nào trong danh sách in" />
+            </div>
           ) : (
             <div ref={componentRef} className="print-container-wrapper">
               <div className="print-grid">
                 {selectedEmployees.map((emp, index) => {
-                  const isMissingImg = !emp.employee_image || emp.employee_image.includes("N/A");
+                  const isMissingImg = !emp.employee_image || emp.employee_image.includes('N/A');
                   return (
                     <div key={emp.employee_id || index} className="print-item">
                       {/* Badge cảnh báo chỉ hiện trên giao diện web, không hiện khi in */}
-                      {!open ? null : (
-                        isMissingImg && (
-                          <div className="no-print-warning">
-                             <Badge status="error" text="Thiếu ảnh" />
-                          </div>
-                        )
-                      )}
+                      {!open
+                        ? null
+                        : isMissingImg && (
+                            <div className="no-print-warning">
+                              <Badge status="error" text="Thiếu ảnh" />
+                            </div>
+                          )}
                       <IdCard data={emp} bgOption={1} showStamp={true} />
                     </div>
                   );
@@ -164,33 +167,33 @@ const handlePrintAndLog = async () => {
         </div>
 
         {/* THANH ĐIỀU KHIỂN (FOOTER) */}
-        <div style={{ 
-            padding: '16px 24px', 
-            background: '#fff', 
+        <div
+          style={{
+            padding: '16px 24px',
+            background: '#fff',
             borderTop: '1px solid #e8e8e8',
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'center'
-        }}>
-            <Text type="secondary">
-              Mẹo: Kiểm tra máy in thẻ nhựa trước khi nhấn "Tiến hành In".
-            </Text>
-            
-            <Space size="middle">
-                <Button onClick={onClose} icon={<CloseOutlined />}>
-                  Đóng
-                </Button>
-                <Button 
-                  type="primary" 
-                  icon={<PrinterOutlined />} 
-                  size="large" 
-                  disabled={selectedEmployees.length === 0}
-                  loading={loading}
-                  onClick={handlePrintAndLog} 
-                >
-                  Tiến hành In
-                </Button>
-            </Space>
+            alignItems: 'center',
+          }}
+        >
+          <Text type="secondary">Mẹo: Kiểm tra máy in thẻ nhựa trước khi nhấn "Tiến hành In".</Text>
+
+          <Space size="middle">
+            <Button onClick={onClose} icon={<CloseOutlined />}>
+              Đóng
+            </Button>
+            <Button
+              type="primary"
+              icon={<PrinterOutlined />}
+              size="large"
+              disabled={selectedEmployees.length === 0}
+              loading={loading}
+              onClick={handlePrintAndLog}
+            >
+              Tiến hành In
+            </Button>
+          </Space>
         </div>
       </div>
 

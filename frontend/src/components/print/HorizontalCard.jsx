@@ -8,10 +8,10 @@ const HorizontalCard = ({
   imageError,
   setImageError,
   showStamp,
-  pregnancyInfo // Object chứa line1, line2
+  pregnancyInfo, // Object chứa line1, line2
 }) => {
   // --- XÁC ĐỊNH MÀU CHỮ ---
-  const isMaternityCard = !!pregnancyInfo; 
+  const isMaternityCard = !!pregnancyInfo;
   const textColor = isMaternityCard ? '#000000' : '#ffffff';
 
   // --- XÁC ĐỊNH VIỀN ẢNH VÀ NỀN ẢNH ---
@@ -31,7 +31,7 @@ const HorizontalCard = ({
         display: 'flex',
         fontFamily: "'Roboto', Arial, sans-serif",
         color: textColor,
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
       }}
     >
       {/* ===== [MỚI] THÔNG TIN THAI SẢN (GÓC PHẢI TRÊN) ===== 
@@ -41,23 +41,23 @@ const HorizontalCard = ({
         <div
           style={{
             position: 'absolute',
-            top: '3mm',     // Cách mép trên 3mm (bạn có thể chỉnh số này)
-            right: '3mm',   // Cách mép phải 3mm (bạn có thể chỉnh số này)
-            zIndex: 10,     // Đảm bảo nổi lên trên
-            
+            top: '3mm', // Cách mép trên 3mm (bạn có thể chỉnh số này)
+            right: '3mm', // Cách mép phải 3mm (bạn có thể chỉnh số này)
+            zIndex: 10, // Đảm bảo nổi lên trên
+
             // --- Hiệu ứng nền mờ ---
             backgroundColor: 'rgba(255, 255, 255, 0.6)', // Màu trắng độ trong suốt 60%
             backdropFilter: 'blur(2px)', // Làm mờ cảnh phía sau (nếu trình duyệt hỗ trợ)
             boxShadow: '0 0 4px rgba(0,0,0,0.1)', // Đổ bóng nhẹ cho rõ khối
             borderRadius: '4px',
             padding: '1mm 2mm', // Khoảng cách đệm bên trong khung
-            
+
             // --- Style chữ ---
             textAlign: 'right',
             fontSize: '9px',
             color: '#ff0000', // Màu đỏ
             lineHeight: '1.4',
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
           }}
         >
           <div>{pregnancyInfo.line1}</div>
@@ -68,22 +68,30 @@ const HorizontalCard = ({
       {/* ===== CỘT ẢNH (BÊN TRÁI) ===== */}
       <div style={{ width: '30mm', display: 'flex', justifyContent: 'center', paddingLeft: '4mm' }}>
         {/* Khung ảnh: Giữ nguyên setting 26mm x 36mm và đẩy xuống 8mm của bạn */}
-        <div style={{
+        <div
+          style={{
             width: '26mm',
             height: '36mm',
             marginTop: '13mm', // Đẩy ảnh xuống dưới
             position: 'relative',
-            borderRadius: '8px', 
+            borderRadius: '8px',
             border: `1px solid ${borderColor}`,
             background: photoBg,
-            overflow: 'hidden' 
-        }}>
+            overflow: 'hidden',
+          }}
+        >
           {!imageError ? (
-            <img 
-              src={employeeImg} 
-              alt="Avatar" 
-              onError={() => setImageError(true)} 
-              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', display: 'block' }} 
+            <img
+              src={employeeImg}
+              alt="Avatar"
+              onError={() => setImageError(true)}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                borderRadius: '8px',
+                display: 'block',
+              }}
             />
           ) : (
             <NoImagePlaceholder isDarkBg={!isMaternityCard} />
@@ -107,11 +115,9 @@ const HorizontalCard = ({
           alignItems: 'center',
           textAlign: 'center',
           paddingRight: '4mm',
-          marginTop: '0' // Không cần đẩy lên nữa vì thông tin thai sản đã chuyển ra chỗ khác
+          marginTop: '0', // Không cần đẩy lên nữa vì thông tin thai sản đã chuyển ra chỗ khác
         }}
       >
-        
-
         {/* 2. CHỨC VỤ */}
         <div
           style={{

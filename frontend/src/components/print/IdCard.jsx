@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import dayjs from 'dayjs';
-import customParseFormat from 'dayjs/plugin/customParseFormat'; 
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 dayjs.extend(customParseFormat);
 
 import VerticalCard from './VerticalCard';
@@ -8,22 +8,18 @@ import HorizontalCard from './HorizontalCard';
 
 const IdCard = ({ data, bgOption = 1, showStamp = false }) => {
   const [imageError, setImageError] = useState(false);
-  
+
   if (!data) return null;
 
   const API_URL = import.meta.env.VITE_API_URL || '';
-  const employeeImg = API_URL 
-  ? `${API_URL}/images/${data.employee_id}.png` 
-  : `/images/${data.employee_id}.png`;
-  
-  const maternityType = data.maternity_type || ''; 
+  const employeeImg = API_URL
+    ? `${API_URL}/images/${data.employee_id}.png`
+    : `/images/${data.employee_id}.png`;
+
+  const maternityType = data.maternity_type || '';
 
   // 1. ĐỊNH NGHĨA CÁC LOẠI THAI SẢN
-  const MATERNITY_TYPES = [
-    "Pregnancy (>7 months)", 
-    "Has Baby", 
-    "Pregnancy Register"
-  ];
+  const MATERNITY_TYPES = ['Pregnancy (>7 months)', 'Has Baby', 'Pregnancy Register'];
 
   // Kiểm tra xem nhân viên có thuộc diện thai sản không
   const isMaternity = MATERNITY_TYPES.includes(maternityType);
@@ -32,15 +28,15 @@ const IdCard = ({ data, bgOption = 1, showStamp = false }) => {
   // Danh sách các chức vụ dùng thẻ DỌC
   const PORTRAIT_ROLES = ['Worker', 'Training'];
 
-  // Logic: 
+  // Logic:
   // - Nếu chức vụ nằm trong danh sách ['Worker', 'Training']
   // - VÀ Không thuộc diện thai sản (Thai sản luôn ưu tiên thẻ Ngang)
   const isPortrait = PORTRAIT_ROLES.includes(data.employee_type) && !isMaternity;
 
   // --- HÀM HELPER XỬ LÝ NGÀY THÁNG ---
   const formatDateSafe = (dateStr) => {
-    if (!dateStr || dateStr === "00/00/0000" || dateStr === "") return null;
-    const d = dayjs(dateStr, ["YYYY-MM-DD", "DD/MM/YYYY", "YYYY/MM/DD"]);
+    if (!dateStr || dateStr === '00/00/0000' || dateStr === '') return null;
+    const d = dayjs(dateStr, ['YYYY-MM-DD', 'DD/MM/YYYY', 'YYYY/MM/DD']);
     return d.isValid() ? d : null;
   };
 
@@ -54,14 +50,18 @@ const IdCard = ({ data, bgOption = 1, showStamp = false }) => {
     if (maternityType === 'Has Baby') {
       // Con nhỏ: Giữ nguyên ngày
       maternityDisplay = {
-        line1: dateBegin ? `Từ ngày: ${dateBegin.format('DD/MM/YYYY')}` : "Từ ngày: ---",
-        line2: dateEnd ? `Đến ngày: ${dateEnd.format('DD/MM/YYYY')}` : "Đến ngày: ---",
+        line1: dateBegin ? `Từ ngày: ${dateBegin.format('DD/MM/YYYY')}` : 'Từ ngày: ---',
+        line2: dateEnd ? `Đến ngày: ${dateEnd.format('DD/MM/YYYY')}` : 'Đến ngày: ---',
       };
     } else {
       // Bầu: Cộng 1 ngày vào ngày kết thúc
       maternityDisplay = {
-        line1: dateBegin ? `Ngày thông báo mang thai: ${dateBegin.format('DD/MM/YYYY')}` : "Ngày TB bầu: ---",
-        line2: dateEnd ? `Ngày thai từ 7 tháng: ${dateEnd.add(1, 'day').format('DD/MM/YYYY')}` : "Bầu 7 tháng từ: ---",
+        line1: dateBegin
+          ? `Ngày thông báo mang thai: ${dateBegin.format('DD/MM/YYYY')}`
+          : 'Ngày TB bầu: ---',
+        line2: dateEnd
+          ? `Ngày thai từ 7 tháng: ${dateEnd.add(1, 'day').format('DD/MM/YYYY')}`
+          : 'Bầu 7 tháng từ: ---',
       };
     }
   }
@@ -75,9 +75,11 @@ const IdCard = ({ data, bgOption = 1, showStamp = false }) => {
     bgUrl = '/assets/bau-ngang.png';
   } else {
     // Thẻ thường
-    bgUrl = isPortrait 
+    bgUrl = isPortrait
       ? '/assets/card-bg-vertical.png' // Nền dọc cho Worker/Training
-      : (bgOption === 1 ? '/assets/card-bg-horizontal.png' : '/assets/card-bg-horizontal-2.png'); // Nền ngang cho Staff/Manager
+      : bgOption === 1
+        ? '/assets/card-bg-horizontal.png'
+        : '/assets/card-bg-horizontal-2.png'; // Nền ngang cho Staff/Manager
   }
 
   const bgImage = `url("${bgUrl}")`;
@@ -91,7 +93,7 @@ const IdCard = ({ data, bgOption = 1, showStamp = false }) => {
     imageError,
     setImageError,
     showStamp,
-    pregnancyInfo: maternityDisplay // Truyền thông tin thai sản (nếu có)
+    pregnancyInfo: maternityDisplay, // Truyền thông tin thai sản (nếu có)
   };
 
   return (

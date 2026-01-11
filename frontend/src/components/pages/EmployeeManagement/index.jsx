@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
 
 // Context
-import { useEmployees } from '../../../context/useEmployees'; 
+import { useEmployees } from '../../../context/useEmployees';
 
 // Components
 import DashboardHeader from '../Dashboard/components/DashboardHeader';
@@ -25,7 +25,7 @@ const EmployeeManagement = () => {
   const [searchText, setSearchText] = useState('');
   const [viewStatus, setViewStatus] = useState('Active');
   const [dateRange, setDateRange] = useState([null, null]);
-  
+
   // State in ấn
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
@@ -35,7 +35,7 @@ const EmployeeManagement = () => {
 
   // 2. PHÂN QUYỀN (ĐÃ CẬP NHẬT CHUẨN)
   const user = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
-  
+
   // [QUAN TRỌNG] Đổi tên hàm cho khớp với permissions.js mới
   // canManage = true (HR/Admin/IT/Manager) | false (Staff)
   const canManage = PERMISSIONS.CAN_MANAGE_HR_DATA(user.role);
@@ -58,25 +58,34 @@ const EmployeeManagement = () => {
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   // Logic Lọc
   const filteredData = useMemo(() => {
-    return employees.filter(item => {
+    return employees.filter((item) => {
       const status = item.employee_status || '';
-      const statusMatch = viewStatus === 'All' ? true : (viewStatus === 'Active' ? status === 'Active' : status !== 'Active');
-      
+      const statusMatch =
+        viewStatus === 'All'
+          ? true
+          : viewStatus === 'Active'
+            ? status === 'Active'
+            : status !== 'Active';
+
       const keyword = searchText.toLowerCase();
       const nameMatch = item.employee_name?.toLowerCase().includes(keyword);
       const idMatch = item.employee_id?.toLowerCase().includes(keyword);
       const deptMatch = item.employee_department?.toLowerCase().includes(keyword);
-      
+
       let dateMatch = true;
       if (dateRange && dateRange[0] && dateRange[1] && item.employee_join_date) {
-        const joinDate = dayjs(item.employee_join_date); 
+        const joinDate = dayjs(item.employee_join_date);
         if (joinDate.isValid()) {
           dateMatch = joinDate.isBetween(dateRange[0], dateRange[1], 'day', '[]');
-        } else { dateMatch = false; }
+        } else {
+          dateMatch = false;
+        }
       }
       return statusMatch && (nameMatch || idMatch || deptMatch) && dateMatch;
     });
@@ -84,14 +93,16 @@ const EmployeeManagement = () => {
 
   // 3. ẨN CHECKBOX NẾU KHÔNG CÓ QUYỀN QUẢN LÝ
   // Nếu Staff (canManage = false) -> Không hiện ô tích chọn
-  const rowSelection = canManage ? {
-    selectedRowKeys,
-    onChange: (newKeys, newRows) => {
-      setSelectedRowKeys(newKeys);
-      setSelectedRows(newRows);
-    },
-    preserveSelectedRowKeys: true, 
-  } : null;
+  const rowSelection = canManage
+    ? {
+        selectedRowKeys,
+        onChange: (newKeys, newRows) => {
+          setSelectedRowKeys(newKeys);
+          setSelectedRows(newRows);
+        },
+        preserveSelectedRowKeys: true,
+      }
+    : null;
 
   const handleOpenPrint = (record) => {
     setSelectedEmployee(record);
@@ -102,36 +113,36 @@ const EmployeeManagement = () => {
     setIsBulkPrintOpen(false);
     setSelectedRowKeys([]);
     setSelectedRows([]);
-    setSearchText('');      
+    setSearchText('');
     setViewStatus('Active');
     setDateRange([null, null]);
-    fetchData(true); 
+    fetchData(true);
   };
 
   return (
     <div style={{ padding: '0 4px' }}>
       <h2 style={{ marginBottom: 20, color: '#001529' }}>Quản lý Danh sách Nhân viên</h2>
-      
-      <DashboardHeader 
-        viewStatus={viewStatus} setViewStatus={setViewStatus}
-        searchText={searchText} setSearchText={setSearchText}
-        dateRange={dateRange} setDateRange={setDateRange}
-        selectedCount={selectedRowKeys.length} 
-        
+
+      <DashboardHeader
+        viewStatus={viewStatus}
+        setViewStatus={setViewStatus}
+        searchText={searchText}
+        setSearchText={setSearchText}
+        dateRange={dateRange}
+        setDateRange={setDateRange}
+        selectedCount={selectedRowKeys.length}
         onBulkPrint={() => setIsBulkPrintOpen(true)}
-        onRefresh={() => fetchData(true)} 
+        onRefresh={() => fetchData(true)}
         loading={loading}
-        
         // 4. TRUYỀN QUYỀN XUỐNG HEADER (Để ẩn nút In hàng loạt)
-        canPrint={canManage} 
+        canPrint={canManage}
       />
-      
-      <EmployeeTable 
+
+      <EmployeeTable
         dataSource={filteredData}
         loading={loading}
         onPrint={handleOpenPrint}
         rowSelection={rowSelection}
-        
         // 5. TRUYỀN QUYỀN XUỐNG TABLE (Để ẩn nút In lẻ/Sửa/Xóa)
         canPrint={canManage}
       />
@@ -139,18 +150,18 @@ const EmployeeManagement = () => {
       {/* Chỉ render Modal nếu có quyền (lớp bảo vệ thứ 2) */}
       {canManage && (
         <>
-            <PrintModal 
-                open={isPrintModalOpen}
-                onClose={() => setIsPrintModalOpen(false)}
-                employee={selectedEmployee}
-                onRefresh={() => fetchData(true)}
-            />
+          <PrintModal
+            open={isPrintModalOpen}
+            onClose={() => setIsPrintModalOpen(false)}
+            employee={selectedEmployee}
+            onRefresh={() => fetchData(true)}
+          />
 
-            <BulkPrintModal 
-                open={isBulkPrintOpen}
-                onClose={handleCloseBulkPrint}
-                selectedEmployees={selectedRows}
-            />
+          <BulkPrintModal
+            open={isBulkPrintOpen}
+            onClose={handleCloseBulkPrint}
+            selectedEmployees={selectedRows}
+          />
         </>
       )}
     </div>

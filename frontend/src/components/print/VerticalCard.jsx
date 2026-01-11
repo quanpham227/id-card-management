@@ -1,14 +1,7 @@
 import React from 'react';
 import { NoImagePlaceholder, CardStamp } from './IdCardHelpers';
 
-const VerticalCard = ({
-  data,
-  employeeImg,
-  bgImage,
-  imageError,
-  setImageError,
-  showStamp
-}) => {
+const VerticalCard = ({ data, employeeImg, bgImage, imageError, setImageError, showStamp }) => {
   return (
     <div
       style={{
@@ -24,7 +17,7 @@ const VerticalCard = ({
         alignItems: 'center',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         color: '#000000', // Worker thẻ dọc luôn chữ đen
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
       }}
     >
       {/* ===== KHUNG ẢNH ===== */}
@@ -37,7 +30,7 @@ const VerticalCard = ({
           borderRadius: '8px',
           border: '0.5px solid rgba(0,0,0,0.2)', // Viền đen nhạt
           background: '#fff',
-          overflow: 'hidden' 
+          overflow: 'hidden',
         }}
       >
         {!imageError ? (
@@ -49,7 +42,7 @@ const VerticalCard = ({
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              display: 'block'
+              display: 'block',
             }}
           />
         ) : (
@@ -63,7 +56,7 @@ const VerticalCard = ({
               bottom: '-2mm',
               right: '-3mm',
               zIndex: 10,
-              transform: 'scale(0.85) rotate(-5deg)'
+              transform: 'scale(0.85) rotate(-5deg)',
             }}
           >
             <CardStamp />
@@ -80,7 +73,7 @@ const VerticalCard = ({
           flexDirection: 'column',
           alignItems: 'center',
           textAlign: 'center',
-          padding: '2mm 4mm 0'
+          padding: '2mm 4mm 0',
         }}
       >
         {/* 1. CHỨC VỤ */}
@@ -93,7 +86,7 @@ const VerticalCard = ({
             letterSpacing: '0.5px',
             minHeight: '22px',
             display: 'flex',
-            alignItems: 'center'
+            alignItems: 'center',
           }}
         >
           {data.employee_position}
@@ -108,7 +101,7 @@ const VerticalCard = ({
             lineHeight: '1.2',
             wordBreak: 'break-word',
             width: '100%',
-            maxWidth: '48mm'
+            maxWidth: '48mm',
           }}
         >
           {data.employee_name}
@@ -120,7 +113,7 @@ const VerticalCard = ({
             marginTop: '1.0mm',
             fontSize: '11.5px',
             fontWeight: 600,
-            letterSpacing: '1px'
+            letterSpacing: '1px',
           }}
         >
           {data.employee_id}
@@ -134,7 +127,7 @@ const VerticalCard = ({
             fontWeight: 500,
             color: '#262626',
             textTransform: 'uppercase',
-            letterSpacing: '0.3px'
+            letterSpacing: '0.3px',
           }}
         >
           {data.employee_department}

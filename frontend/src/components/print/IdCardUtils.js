@@ -10,14 +10,14 @@ export const getFontSize = (name) => {
   const len = name.length;
 
   // Tên cực dài (vd: Công Tằng Tôn Nữ...) -> Chữ nhỏ
-  if (len > 25) return '13px'; 
-  
+  if (len > 25) return '13px';
+
   // Tên dài (vd: Nguyễn Thị Phương Thảo) -> Chữ vừa
-  if (len > 18) return '15px'; 
-  
+  if (len > 18) return '15px';
+
   // Tên trung bình -> Chữ chuẩn
-  if (len > 12) return '18px'; 
-  
+  if (len > 12) return '18px';
+
   // Tên ngắn (vd: Lê Văn A) -> Chữ to
-  return '20px'; 
+  return '20px';
 };
