@@ -23,6 +23,9 @@ backend/static/images/*
 !backend/static/images/.gitkeep
 backend/backups/*
 !backend/backups/.gitkeep
+backend/images/*
+!backend/images/.gitkeep
+
 
 # Scripts cá nhân/test
 backend/create_super_admin.py

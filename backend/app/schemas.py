@@ -121,3 +121,95 @@ class ToolPrintCreate(BaseModel):
 
     class Config:
         from_attributes = True
+
+# -- Sub-schema cho User info gọn nhẹ --
+class UserShortInfo(BaseModel):
+    id: int
+    full_name: str
+    username: str
+    role: str
+    class Config:
+        from_attributes = True
+
+# -- Schema Comment --
+class TicketCommentCreate(BaseModel):
+    content: str
+    type: Optional[str] = "Comment"
+
+class TicketCommentResponse(BaseModel):
+    id: int
+    content: str
+    created_at: datetime
+    type: str
+    user: Optional[UserShortInfo] = None
+    class Config:
+        from_attributes = True
+
+# -- Schema Ticket --
+# Lưu ý: TicketCreate dùng Form Data (xử lý trực tiếp trong Router), 
+# nên ở đây chủ yếu định nghĩa Response và Update JSON.
+
+class TicketUpdate(BaseModel):
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    assignee_id: Optional[int] = None
+    category: Optional[str] = None
+    resolution_note: Optional[str] = None # Dùng để add comment khi đóng
+
+class TicketResponse(BaseModel):
+    id: int
+    title: str
+    description: str
+    category: str
+    priority: str
+    status: str
+    attachments: Optional[List[str]] = []
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    resolved_at: Optional[datetime] = None
+    
+    requester: Optional[UserShortInfo] = None
+    assignee: Optional[UserShortInfo] = None
+    
+    # Có thể include comments hoặc không tùy endpoint
+    comments: Optional[List[TicketCommentResponse]] = []
+
+    class Config:
+        from_attributes = True
+
+# -- Schema thống kê Ticket --
+class TicketStats(BaseModel):
+    total: int
+    open: int
+    in_progress: int
+    resolved: int
+    critical: int
+
+class TicketCategoryBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    sla_hours: int = 24
+    is_active: bool = True
+
+# --- SCHEMAS CHO TICKET CATEGORY ---
+class TicketCategoryBase(BaseModel):
+    name: str
+    code: str
+    description: Optional[str] = None
+    sla_hours: Optional[int] = 24
+    is_active: Optional[bool] = True
+
+class TicketCategoryCreate(TicketCategoryBase):
+    pass
+
+class TicketCategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    code: Optional[str] = None
+    description: Optional[str] = None
+    sla_hours: Optional[int] = None
+    is_active: Optional[bool] = None
+
+class TicketCategoryResponse(TicketCategoryBase):
+    id: int
+    class Config:
+        from_attributes = True

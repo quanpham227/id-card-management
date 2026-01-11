@@ -100,3 +100,70 @@ class User(Base):
     hashed_password = Column(String)
     role = Column(String)
     is_active = Column(Boolean, default=True)
+
+
+class Ticket(Base):
+    __tablename__ = "tickets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, index=True)
+    description = Column(Text)
+    
+    # Phân loại: Hardware, Software, Network...
+    category = Column(String) 
+    
+    # Mức độ: Low, Medium, High, Critical
+    priority = Column(String, default="Medium") 
+    
+    # Trạng thái: Open, In Progress, Resolved, Closed, Cancelled
+    status = Column(String, default="Open", index=True)
+    
+    # File đính kèm (Lưu dạng JSON list đường dẫn file)
+    attachments = Column(JSON, nullable=True)
+
+    # Thời gian
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    resolved_at = Column(DateTime, nullable=True)
+
+    # Người tạo yêu cầu (Requester)
+    requester_id = Column(Integer, ForeignKey("users.id"))
+    
+    # Người xử lý (Assignee - IT/Admin)
+    assignee_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    # Quan hệ
+    requester = relationship("User", foreign_keys=[requester_id])
+    assignee = relationship("User", foreign_keys=[assignee_id])
+    
+    # Quan hệ tới các comment/log
+    comments = relationship("TicketComment", back_populates="ticket", cascade="all, delete-orphan")
+
+
+class TicketComment(Base):
+    __tablename__ = "ticket_comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticket_id = Column(Integer, ForeignKey("tickets.id"))
+    user_id = Column(Integer, ForeignKey("users.id")) # Người comment
+    
+    content = Column(Text)
+    created_at = Column(DateTime, default=func.now())
+    
+    # Loại: 'Comment' (Trao đổi), 'System' (Log đổi trạng thái), 'Internal' (Ghi chú nội bộ IT)
+    type = Column(String, default="Comment") 
+
+    ticket = relationship("Ticket", back_populates="comments")
+    user = relationship("User")
+
+
+# --- BẢNG DANH MỤC LOẠI TICKET ---
+class TicketCategory(Base):
+    __tablename__ = "ticket_categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True) # Ví dụ: Hardware, Software
+    code = Column(String, unique=True)             # Ví dụ: HW, SW
+    description = Column(String, nullable=True)
+    sla_hours = Column(Integer, default=24)        # Cam kết xử lý trong bao lâu
+    is_active = Column(Boolean, default=True)      # True: Đang dùng, False: Tạm ẩn
