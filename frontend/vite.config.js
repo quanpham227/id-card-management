@@ -1,41 +1,38 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
 
-  // --- PHẦN CẬP NHẬT: Cấu hình cho npm run dev ---
+  // 1. Cấu hình cho môi trường DEV (npm run dev)
   server: {
-    port: 5173,
+    port: 5173, // Cổng chạy frontend dev
     proxy: {
-      // Khi code gọi đến /api, Vite sẽ chuyển hướng sang Docker Backend (8000)
+      // Khi React gọi: /api/login -> Vite chuyển thành: http://127.0.0.1:8000/api/login
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
-        // Không dùng rewrite nếu Backend của bạn đã có sẵn prefix /api
+        secure: false,
       },
-      // Nếu bạn muốn hiển thị ảnh trực tiếp từ Backend khi dev
+      // Khi React gọi: /images/abc.png -> Vite chuyển thành: http://127.0.0.1:8000/images/abc.png
       '/images': {
-        target: 'http://localhost:8000',
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
+        secure: false,
       },
     },
   },
 
+  // 2. Cấu hình cho môi trường PRODUCTION (npm run build)
   build: {
-    // Tăng giới hạn cảnh báo chunk
-    chunkSizeWarningLimit: 1000,
-
-    // Cấu hình build an toàn cho Antd v5 + React 18
+    chunkSizeWarningLimit: 1600, // Tăng lên chút nữa cho thoải mái
+    outDir: 'dist', // Thư mục xuất ra (mặc định là dist)
     commonjsOptions: {
       transformMixedEsModules: true,
     },
-
     rollupOptions: {
       output: {
         manualChunks: {
-          // Tách các thư viện lớn ra để load nhanh hơn
           vendor: ['react', 'react-dom', 'react-router-dom'],
           antd: ['antd', '@ant-design/icons'],
           charts: ['recharts'],
