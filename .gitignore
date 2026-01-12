@@ -25,12 +25,25 @@ backend/backups/*
 !backend/backups/.gitkeep
 backend/images/*
 !backend/images/.gitkeep
+backend/uploads/
+deploy_package/
 
 
 # Scripts cá nhân/test
 backend/create_super_admin.py
 backend/migrate_json_to_db.py
 backend/backup_script.py
+
+# --- DOCKER & DEPLOYMENT ---
+DEPLOY_GUIDE.md
+docker-compose.yml
+docker-compose.*.yml
+.env
+staffhub/
+
+# Dockerfiles
+backend/Dockerfile
+frontend/Dockerfile
 
 # Logs
 backend/system.log
@@ -47,6 +60,7 @@ frontend/dist/
 frontend/dist-ssr/
 frontend/build/
 frontend/coverage/
+
 
 # Môi trường
 .env
@@ -74,5 +88,6 @@ desktop.ini
 dist/
 *.tar
 *.tar
-
+.gitignore
 staffhub-deploy.tar
+DEPLOY_GUIDE.md
