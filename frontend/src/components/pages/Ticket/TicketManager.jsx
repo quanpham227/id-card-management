@@ -12,14 +12,17 @@ import {
   message,
   Badge,
   Tooltip,
+  Popconfirm, // <--- THÊM MỚI: Để hiện hộp thoại xác nhận xóa
 } from 'antd';
 import {
   ReloadOutlined,
   EyeOutlined,
   FilterOutlined,
-  CheckCircleOutlined,
   UserAddOutlined,
+  ClockCircleOutlined,
+  DeleteOutlined, // <--- THÊM MỚI: Icon xóa
 } from '@ant-design/icons';
+import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import axiosClient from '../../../api/axiosClient';
 import { PRIORITY_LEVELS, TICKET_STATUS } from '../../../constants/constants';
@@ -28,14 +31,19 @@ const { Title, Text } = Typography;
 
 const TicketManager = () => {
   const navigate = useNavigate();
+
+  // Lấy thông tin user hiện tại để check quyền xóa
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const canDelete = ['Admin', 'Manager'].includes(currentUser.role);
+
   const [loading, setLoading] = useState(false);
   const [tickets, setTickets] = useState([]);
 
-  // --- STATE QUẢN LÝ PHÂN TRANG (MỚI) ---
+  // --- STATE QUẢN LÝ PHÂN TRANG ---
   const [pagination, setPagination] = useState({
-    current: 1, // Trang hiện tại
-    pageSize: 10, // Số dòng mỗi trang
-    total: 0, // Tổng số dòng (để tính số trang)
+    current: 1,
+    pageSize: 10,
+    total: 0,
   });
 
   // State cho bộ lọc
@@ -44,7 +52,7 @@ const TicketManager = () => {
     priority: 'All',
   });
 
-  // --- 1. Fetch Data (Cập nhật để nhận Page/Size) ---
+  // --- 1. Fetch Data ---
   const fetchTickets = async (page = 1, pageSize = 10) => {
     setLoading(true);
     try {
@@ -55,18 +63,15 @@ const TicketManager = () => {
 
       if (filters.status !== 'All') params.status = filters.status;
       if (filters.priority !== 'All') params.priority = filters.priority;
+
       const res = await axiosClient.get('/tickets/manage', { params });
 
-      // --- KIỂM TRA DÒNG NÀY ---
-      // Dữ liệu ticket nằm trong res.items (vì backend trả về object phân trang)
-      // Nếu res.items bị undefined, hãy thử log console.log(res) để xem cấu trúc
       if (res && res.data) {
-        setTickets(res.data.items || []); // Thêm .data
-
+        setTickets(res.data.items || []);
         setPagination({
-          current: res.data.page || 1, // Thêm .data
-          pageSize: res.data.size || 10, // Thêm .data
-          total: res.data.total || 0, // Thêm .data
+          current: res.data.page || 1,
+          pageSize: res.data.size || 10,
+          total: res.data.total || 0,
         });
       } else {
         setTickets([]);
@@ -79,7 +84,6 @@ const TicketManager = () => {
     }
   };
 
-  // Gọi lần đầu hoặc khi Filters thay đổi -> Về trang 1
   useEffect(() => {
     fetchTickets(1, pagination.pageSize);
   }, [filters]);
@@ -92,30 +96,42 @@ const TicketManager = () => {
   // --- 3. Action: Assign to Me ---
   const handleAssignToMe = async (ticketId) => {
     try {
-      const user = JSON.parse(localStorage.getItem('user'));
-
       await axiosClient.put(`/tickets/${ticketId}`, {
-        assignee_id: user.id,
+        assignee_id: currentUser.id,
         status: 'In Progress',
         resolution_note: 'Ticket has been claimed by IT Support.',
       });
 
       message.success('You have claimed this ticket!');
-
-      // Reload lại trang hiện tại (không nhảy về trang 1)
       fetchTickets(pagination.current, pagination.pageSize);
     } catch {
       message.error('Failed to assign ticket.');
     }
   };
 
-  // --- Columns Definition (Giữ nguyên) ---
+  // --- 4. [THÊM MỚI] Action: Delete Ticket ---
+  const handleDeleteTicket = async (ticketId) => {
+    try {
+      // Gọi API Delete: DELETE /api/tickets/{id}
+      await axiosClient.delete(`/tickets/${ticketId}`);
+      message.success('Ticket deleted successfully');
+
+      // Load lại dữ liệu trang hiện tại
+      fetchTickets(pagination.current, pagination.pageSize);
+    } catch (error) {
+      console.error('Delete error:', error);
+      message.error(error.response?.data?.detail || 'Failed to delete ticket');
+    }
+  };
+
+  // --- Columns Definition ---
   const columns = [
     {
       title: 'ID',
       dataIndex: 'id',
       key: 'id',
       width: 80,
+      align: 'center',
       render: (id) => <Text code>#{id}</Text>,
     },
     {
@@ -136,6 +152,7 @@ const TicketManager = () => {
       title: 'Priority',
       dataIndex: 'priority',
       key: 'priority',
+      width: 100,
       render: (p) => {
         const info = PRIORITY_LEVELS[p] || { label: p, color: 'default' };
         return <Tag color={info.color}>{info.label}</Tag>;
@@ -145,6 +162,7 @@ const TicketManager = () => {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
+      width: 120,
       render: (s) => {
         const statusKey = s ? String(s).toLowerCase() : 'open';
         const info = TICKET_STATUS[statusKey] || { label: s, status: 'default' };
@@ -152,24 +170,41 @@ const TicketManager = () => {
       },
     },
     {
-      title: 'Assignee',
-      dataIndex: 'assignee',
+      title: 'Created At',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 160,
+      render: (date) => (
+        <Space size="small">
+          <ClockCircleOutlined style={{ color: '#bfbfbf' }} />
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            {dayjs(date).format('DD/MM/YYYY HH:mm')}
+          </Text>
+        </Space>
+      ),
+    },
+    {
+      title: 'Assigned To',
       key: 'assignee',
-      render: (assignee) =>
-        assignee ? (
-          <Tag color="blue" icon={<CheckCircleOutlined />}>
-            {assignee.full_name}
-          </Tag>
-        ) : (
-          <Tag>Waiting...</Tag>
-        ),
+      width: 150,
+      render: (_, record) => {
+        if (record.assignee) {
+          return <Tag color="geekblue">{record.assignee.full_name}</Tag>;
+        }
+        if (record.status === 'Cancelled' || record.status === 'Resolved') {
+          return <span style={{ color: '#ccc' }}>-</span>;
+        }
+        return <Tag color="warning">Waiting</Tag>;
+      },
     },
     {
       title: 'Actions',
       key: 'actions',
       align: 'right',
+      width: 140, // Tăng width một chút để chứa đủ 3 nút
       render: (_, record) => (
-        <Space>
+        <Space size="small">
+          {/* Nút Assign (Giữ nguyên logic cũ) */}
           {!record.assignee_id && record.status === 'Open' && (
             <Tooltip title="Assign to Me">
               <Button
@@ -179,15 +214,33 @@ const TicketManager = () => {
               />
             </Tooltip>
           )}
-          <Button
-            type="primary"
-            ghost
-            icon={<EyeOutlined />}
-            onClick={() => navigate(`/tickets/detail/${record.id}`)}
-            size="small"
-          >
-            Manage
-          </Button>
+
+          {/* Nút View Detail (Giữ nguyên) */}
+          <Tooltip title="View Details">
+            <Button
+              type="primary"
+              ghost
+              icon={<EyeOutlined />}
+              onClick={() => navigate(`/tickets/detail/${record.id}`)}
+              size="small"
+            />
+          </Tooltip>
+
+          {/* [THÊM MỚI] Nút Delete - Chỉ hiện nếu là Admin/Manager */}
+          {canDelete && (
+            <Tooltip title="Delete Ticket">
+              <Popconfirm
+                title="Delete this ticket?"
+                description="Are you sure to delete this ticket permanently?"
+                onConfirm={() => handleDeleteTicket(record.id)}
+                okText="Yes"
+                cancelText="No"
+                placement="topRight"
+              >
+                <Button danger icon={<DeleteOutlined />} size="small" />
+              </Popconfirm>
+            </Tooltip>
+          )}
         </Space>
       ),
     },

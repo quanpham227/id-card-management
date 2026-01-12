@@ -10,7 +10,6 @@ import {
   Row,
   Col,
   Typography,
-  Space,
   Divider,
   Tag,
 } from 'antd';
@@ -101,9 +100,22 @@ const CreateTicket = () => {
           }
         });
 
-        const uploadRes = await axiosClient.post('/ticket-upload', formData, {
+        // --- [SỬA ĐỔI QUAN TRỌNG]: Xử lý URL Upload ---
+        let uploadEndpoint = '/ticket-upload';
+
+        // Nếu là Localhost (không có biến môi trường), ta ép cứng URL tuyệt đối
+        // Lý do: axiosClient mặc định baseURL='/api'. Nếu gọi '/ticket-upload' -> '/api/ticket-upload'
+        // Trên localhost port 5173, đường dẫn này sẽ 404.
+        // Ta ép cứng http://localhost:8000/... để axios bỏ qua baseURL và gọi thẳng server.
+        if (!import.meta.env.VITE_API_URL) {
+          uploadEndpoint = 'http://localhost:8000/api/ticket-upload';
+        }
+
+        // Gọi API Upload
+        const uploadRes = await axiosClient.post(uploadEndpoint, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
+
         attachmentUrls = (uploadRes.data?.filenames || []).join(',');
       }
 
@@ -111,7 +123,7 @@ const CreateTicket = () => {
       const payload = {
         title: values.title,
         description: values.description,
-        priority: Number(values.priority), // Gửi số 1, 2, 3, 4
+        priority: Number(values.priority),
         category_id: Number(values.category_id),
         asset_id: values.asset_id ? Number(values.asset_id) : null,
         attachment_url: attachmentUrls,
@@ -176,7 +188,7 @@ const CreateTicket = () => {
               </Form.Item>
             </Col>
 
-            {/* Priority level - ĐÃ FIX: Thêm Form.Item bao quanh */}
+            {/* Priority level */}
             <Col span={12} xs={24} sm={12}>
               <Form.Item
                 name="priority"
