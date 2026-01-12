@@ -8,6 +8,7 @@ from sqlalchemy import (
     Boolean,
     JSON,
     DateTime,
+    Text
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -132,6 +133,9 @@ class Ticket(Base):
     priority = Column(String, default="2")  # Lưu "1", "2", "3", "4" dạng chuỗi
     status = Column(String, default="Open", index=True)
     attachments = Column(JSON, nullable=True)
+
+    
+    resolution_note = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())

@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm  # <--- [MỚI] Import cái này
+from fastapi.security import OAuth2PasswordRequestForm  
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from jose import jwt
+from app.config import SECRET_KEY, ALGORITHM
 
 # Import database và models
 from app.database import get_db
@@ -12,14 +13,10 @@ from app import models
 router = APIRouter(tags=["Authentication"])
 
 # --- CẤU HÌNH BẢO MẬT ---
-SECRET_KEY = "bi_mat_khong_the_bat_mi_chuyen_gia_bao_mat_cap_cao"
-ALGORITHM = "HS256"
+
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# [XÓA] Class LoginRequest cũ không dùng nữa vì chuyển sang Form
-# class LoginRequest(BaseModel): ...
 
 
 # --- CÁC HÀM HỖ TRỢ ---

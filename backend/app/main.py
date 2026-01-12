@@ -5,23 +5,29 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
-from sqlalchemy.orm import Session
+from contextlib import asynccontextmanager
 
-# Import cấu hình
-from app.config import IMAGES_DIR, BASE_DIR, HOST, PORT
+# --- [CẬP NHẬT] Import từ config mới ---
+from app.config import (
+    STATIC_DIR,
+    EMPLOYEE_IMAGES_DIR,    # static/images
+    UPLOAD_DIR,             # uploads (Thư mục gốc cho file user)
+    TICKET_IMAGES_DIR,      # uploads/tickets
+    DATA_DIR, 
+    HOST, 
+    PORT
+)
 
 # Import Database
-# [CẬP NHẬT]: Import thêm SessionLocal để dùng cho việc khởi tạo dữ liệu mẫu
 from app.database import engine, SessionLocal
 from app import models
 
 # Import Routers
-from app.routers import auth, employees, assets, upload, users
-from app.routers import print as print_router
-from app.routers import categories
-from app.routers import tickets
-from app.routers import ticket_categories
-from app.routers import ticket_upload
+from app.routers import (
+    auth, employees, assets, upload, users, 
+    print as print_router, categories, 
+    tickets, ticket_categories, ticket_upload
+)
 
 # --- 1. CẤU HÌNH LOGGING ---
 logging.basicConfig(
@@ -31,125 +37,88 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Tạo bảng DB
+# Tạo bảng DB (nếu chưa có)
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="ID Card & Asset System")
 
-
-# --- [MỚI] HÀM KHỞI TẠO DỮ LIỆU MẪU (SEED DATA) ---
-# app/main.py
-
-
+# --- HÀM KHỞI TẠO DỮ LIỆU MẪU (SEED DATA) ---
 def init_db_data():
-    """
-    Hàm này chạy khi server khởi động.
-    Nó kiểm tra và khởi tạo dữ liệu mẫu cho Asset và Ticket nếu chưa có.
-    """
+    """Kiểm tra và khởi tạo dữ liệu mẫu cho Asset và Ticket."""
     db = SessionLocal()
     try:
-        # --- 1. KHỞI TẠO ASSET CATEGORIES (Cũ) ---
+        # 1. Asset Categories
         if db.query(models.AssetCategory).count() == 0:
-            print("🚀 [System Init] Creating default Asset Categories...")
+            print(" [System Init] Creating default Asset Categories...")
             asset_defaults = [
-                models.AssetCategory(
-                    name="PC", code="PC", description="Personal Computer"
-                ),
-                models.AssetCategory(
-                    name="Laptop", code="LPT", description="Notebook / Laptop"
-                ),
-                models.AssetCategory(
-                    name="Tablet", code="TAB", description="Tablet Device"
-                ),
-                models.AssetCategory(
-                    name="Printer", code="PRT", description="Office Printer"
-                ),
-                models.AssetCategory(
-                    name="Monitor", code="MON", description="Display Monitor"
-                ),
-                models.AssetCategory(
-                    name="Server", code="SRV", description="Server System"
-                ),
-                models.AssetCategory(
-                    name="Camera", code="CAM", description="CCTV / Webcams"
-                ),
+                models.AssetCategory(name="PC", code="PC", description="Personal Computer"),
+                models.AssetCategory(name="Laptop", code="LPT", description="Notebook / Laptop"),
+                models.AssetCategory(name="Tablet", code="TAB", description="Tablet Device"),
+                models.AssetCategory(name="Printer", code="PRT", description="Office Printer"),
+                models.AssetCategory(name="Monitor", code="MON", description="Display Monitor"),
+                models.AssetCategory(name="Server", code="SRV", description="Server System"),
+                models.AssetCategory(name="Camera", code="CAM", description="CCTV / Webcams"),
             ]
             db.add_all(asset_defaults)
             db.commit()
-            print("✅ [System Init] Default Asset Categories created.")
-        else:
-            print("✅ [System Init] Asset Categories data already exists.")
+            print(" [System Init] Asset Categories created.")
 
-        # --- 2. KHỞI TẠO TICKET CATEGORIES (Mới) ---
+        # 2. Ticket Categories
         if db.query(models.TicketCategory).count() == 0:
-            print("🚀 [System Init] Creating default Ticket Categories...")
+            print(" [System Init] Creating default Ticket Categories...")
             ticket_defaults = [
-                models.TicketCategory(
-                    name="Hardware Issue",
-                    code="HW",
-                    description="Hư hỏng thiết bị vật lý (PC, Chuột, Phím...)",
-                    sla_hours=24,
-                ),
-                models.TicketCategory(
-                    name="Software Issue",
-                    code="SW",
-                    description="Lỗi Windows, Office, Unikey, Zalo...",
-                    sla_hours=24,
-                ),
-                models.TicketCategory(
-                    name="Network/Internet",
-                    code="NET",
-                    description="Mất mạng, Wifi yếu, không vào được LAN",
-                    sla_hours=4,
-                ),
-                models.TicketCategory(
-                    name="Printer/Scanner",
-                    code="PRT",
-                    description="Kẹt giấy, hết mực, không in được",
-                    sla_hours=8,
-                ),
-                models.TicketCategory(
-                    name="Account & Access",
-                    code="ACC",
-                    description="Quên mật khẩu, tạo email mới, cấp quyền ERP",
-                    sla_hours=2,
-                ),
-                models.TicketCategory(
-                    name="New Request",
-                    code="REQ",
-                    description="Yêu cầu cấp phát thiết bị mới",
-                    sla_hours=48,
-                ),
+                models.TicketCategory(name="Hardware Issue", code="HW", description="Hư hỏng thiết bị vật lý", sla_hours=24),
+                models.TicketCategory(name="Software Issue", code="SW", description="Lỗi phần mềm, Office, Zalo", sla_hours=24),
+                models.TicketCategory(name="Network/Internet", code="NET", description="Mất mạng, Wifi yếu", sla_hours=4),
+                models.TicketCategory(name="Printer/Scanner", code="PRT", description="Lỗi máy in", sla_hours=8),
+                models.TicketCategory(name="Account & Access", code="ACC", description="Cấp lại mật khẩu, quyền ERP", sla_hours=2),
+                models.TicketCategory(name="New Request", code="REQ", description="Yêu cầu cấp phát mới", sla_hours=48),
             ]
             db.add_all(ticket_defaults)
             db.commit()
-            print("✅ [System Init] Default Ticket Categories created.")
-        else:
-            print("✅ [System Init] Ticket Categories data already exists.")
-
+            print(" [System Init] Ticket Categories created.")
+            
     except Exception as e:
-        print(f"❌ [System Init] Error seeding data: {e}")
+        print(f" [System Init] Error seeding data: {e}")
         logger.error(f"Error seeding data: {e}")
     finally:
         db.close()
 
 
-@app.on_event("startup")
-async def startup_event():
-    # 1. Tạo các thư mục bắt buộc
-    required_dirs = ["images", "backups", "logs"]
-
-    print("---------------------------------------------------")
+# --- [CẬP NHẬT] LIFESPAN ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # --- STARTUP ---
+    print("\n---------------------------------------------------")
+    
+    # Danh sách thư mục bắt buộc phải tồn tại
+    required_dirs = [
+        STATIC_DIR,
+        EMPLOYEE_IMAGES_DIR, # static/images
+        UPLOAD_DIR,          # uploads
+        TICKET_IMAGES_DIR,   # uploads/tickets
+        DATA_DIR, 
+        "backups", 
+        "logs"
+    ]
+    
     for directory in required_dirs:
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-            print(f"[System Init] Created directory: {directory}")
-        else:
-            print(f" [System Init] Directory exists: {directory}")
+        os.makedirs(directory, exist_ok=True)
+        # print(f"[Check Dir] OK: {directory}") 
 
-    # 2. [MỚI] Gọi hàm khởi tạo dữ liệu mẫu
     init_db_data()
+    print(" System Startup Complete")
+    print("---------------------------------------------------\n")
+    
+    yield  # Server chạy tại đây
+
+    # --- SHUTDOWN ---
+    print("\n---------------------------------------------------")
+    print(" System Shutting Down...")
     print("---------------------------------------------------")
+
+
+# Khai báo app
+app = FastAPI(title="ID Card & Asset System", lifespan=lifespan)
 
 
 # --- 2. GLOBAL EXCEPTION HANDLER ---
@@ -157,13 +126,10 @@ async def startup_event():
 async def global_exception_handler(request: Request, exc: Exception):
     error_msg = f"CRITICAL ERROR: {str(exc)}"
     logger.error(error_msg)
-    print(error_msg)
-
     return JSONResponse(
         status_code=500,
         content={
-            "message": "Lỗi hệ thống nội bộ (Internal Server Error).",
-            "details": "Vui lòng liên hệ Admin hoặc kiểm tra file log.",
+            "message": "Lỗi hệ thống nội bộ.",
             "error": str(exc),
         },
     )
@@ -186,20 +152,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # --- 4. API ROUTERS ---
 app.include_router(auth.router)
 app.include_router(employees.router, tags=["Employees"])
-app.include_router(categories.router)  # [MỚI] Đăng ký router categories
+app.include_router(categories.router)
 app.include_router(assets.router)
-app.include_router(upload.router, tags=["Upload"])
+app.include_router(upload.router, tags=["Upload Legacy"]) # Upload cũ (nếu còn dùng)
 app.include_router(print_router.router)
 app.include_router(users.router)
+# Router Ticket mới
 app.include_router(tickets.router)
 app.include_router(ticket_categories.router)
-app.include_router(ticket_upload.router)
+app.include_router(ticket_upload.router) # Router upload mới xử lý logic lưu vào uploads/tickets
 
-# --- 5. MOUNT STATIC FILES ---
-app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
+
+# --- 5. [QUAN TRỌNG] MOUNT STATIC FILES ---
+
+# A. Ảnh Tĩnh / Ảnh Nhân viên (Legacy)
+# URL: http://localhost:8000/images/nv01.png -> Trỏ vào backend/static/images
+app.mount("/images", StaticFiles(directory=EMPLOYEE_IMAGES_DIR), name="employee_images")
+
+# B. Ảnh Upload (Ticket, Tài liệu...)
+# URL: http://localhost:8000/uploads/tickets/loi.png -> Trỏ vào backend/uploads/tickets
+# Mount thư mục cha 'uploads' để sau này mở rộng thêm 'uploads/avatars', 'uploads/docs' dễ dàng
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
 
 # --- 6. FRONTEND SERVING (AUTO-DETECT) ---
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -207,37 +185,24 @@ backend_dir = os.path.dirname(current_dir)
 project_root = os.path.dirname(backend_dir)
 FRONTEND_DIR = os.path.join(project_root, "frontend", "dist")
 
-logger.info(f"Checking Frontend Path: {FRONTEND_DIR}")
-
 if os.path.exists(FRONTEND_DIR):
-    logger.info("FRONTEND FOUND. Serving static files...")
-
     assets_path = os.path.join(FRONTEND_DIR, "assets")
     if os.path.exists(assets_path):
         app.mount("/assets", StaticFiles(directory=assets_path), name="static_assets")
 
-    # [FIX QUAN TRỌNG Ở ĐÂY]
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
-        # 1. Nếu request bắt đầu bằng "api", nghĩa là gọi nhầm API hoặc API không tồn tại
-        # -> Trả về lỗi 404 JSON (để Frontend catch được lỗi) thay vì trả về HTML
-        if full_path.startswith("api"):
-            from fastapi import HTTPException
+        if full_path.startswith("api") or full_path.startswith("uploads") or full_path.startswith("images"):
+             from fastapi import HTTPException
+             raise HTTPException(status_code=404, detail="Not found")
 
-            raise HTTPException(status_code=404, detail="API endpoint not found")
-
-        # 2. Kiểm tra file tĩnh (JS, CSS, Ảnh...)
         file_path = os.path.join(FRONTEND_DIR, full_path)
         if os.path.exists(file_path) and os.path.isfile(file_path):
             return FileResponse(file_path)
 
-        # 3. Mặc định trả về index.html (cho React Router hoạt động)
         return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
-
 else:
-    logger.warning("FRONTEND NOT FOUND.")
-    print(" CẢNH BÁO: Không tìm thấy thư mục Frontend (dist).")
-
+    print(" CẢNH BÁO: Không tìm thấy thư mục Frontend (dist). Chạy mode API Only.")
 
 if __name__ == "__main__":
     print(f" Server starting on http://{HOST}:{PORT}")

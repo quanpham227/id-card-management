@@ -1,34 +1,37 @@
-from sqlalchemy import create_engine, event
+import os
+from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from dotenv import load_dotenv
 
-# Tên file database
-SQLALCHEMY_DATABASE_URL = "sqlite:///./sql_app.db"
+# 1. Load biến môi trường từ file .env
+load_dotenv()
 
-# 1. Tăng timeout lên 30s (mặc định là 5s) để giảm thiểu lỗi locked
+# 2. Lấy đường dẫn kết nối từ .env
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Kiểm tra an toàn: Nếu quên cấu hình .env thì báo lỗi ngay
+if not SQLALCHEMY_DATABASE_URL:
+    raise ValueError("LỖI: Chưa cấu hình biến DATABASE_URL trong file .env")
+
+# In ra terminal để debug (xem đang kết nối đi đâu)
+print("--------------------------------------------------")
+print(f"DATABASE CONNECTING TO: {SQLALCHEMY_DATABASE_URL}")
+print("--------------------------------------------------")
+
+# 3. Tạo Engine kết nối PostgreSQL
+# Lưu ý: Đã xóa bỏ các tham số riêng của SQLite (check_same_thread, timeout)
+# PostgreSQL xử lý đa luồng tốt nên không cần check_same_thread
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False, "timeout": 30}
+    SQLALCHEMY_DATABASE_URL
 )
 
-
-# 2. CẤU HÌNH WAL MODE (QUAN TRỌNG)
-# Hàm này sẽ tự chạy mỗi khi có kết nối mới vào Database
-def set_sqlite_pragma(dbapi_connection, connection_record):
-    cursor = dbapi_connection.cursor()
-    # Bật chế độ ghi song song
-    cursor.execute("PRAGMA journal_mode=WAL")
-    # Tối ưu tốc độ đồng bộ
-    cursor.execute("PRAGMA synchronous=NORMAL")
-    cursor.close()
-
-
-# Đăng ký hàm trên với engine
-event.listen(engine, "connect", set_sqlite_pragma)
+# Lưu ý: Đã XÓA đoạn code event.listen và PRAGMA WAL mode 
+# (Vì PostgreSQL tự quản lý việc này, không dùng lệnh PRAGMA của SQLite)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
-
 
 # Hàm dependency
 def get_db():

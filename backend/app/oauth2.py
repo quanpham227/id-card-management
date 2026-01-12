@@ -4,10 +4,10 @@ from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 from app import models
 from app.database import get_db
+from app.config import SECRET_KEY, ALGORITHM
 
-# [QUAN TRỌNG] Cấu hình này PHẢI GIỐNG Y HỆT bên auth.py
-SECRET_KEY = "bi_mat_khong_the_bat_mi_chuyen_gia_bao_mat_cap_cao"
-ALGORITHM = "HS256"
+
+
 
 # Khai báo đường dẫn API dùng để lấy token (Login)
 # Đường dẫn này khớp với @router.post("/api/login") trong auth.py
