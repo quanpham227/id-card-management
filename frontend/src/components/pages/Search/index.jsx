@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-// 1. Đảm bảo import đầy đủ các component cần thiết
 import {
   Input,
   Card,
@@ -30,7 +29,6 @@ import { useEmployees } from '../../../context/useEmployees';
 const { Title, Text } = Typography;
 
 const SearchPage = () => {
-  const API_URL = import.meta.env.VITE_API_URL || '';
   const { employees } = useEmployees();
 
   const [searchId, setSearchId] = useState('');
@@ -47,7 +45,7 @@ const SearchPage = () => {
       .filter(
         (e) =>
           e.employee_id.includes(searchId) ||
-          (e.employee_old_id && e.employee_old_id.includes(searchId)) || // Tìm cả mã cũ
+          (e.employee_old_id && e.employee_old_id.includes(searchId)) ||
           e.employee_name.toLowerCase().includes(searchId.toLowerCase())
       )
       .slice(0, 10)
@@ -66,6 +64,7 @@ const SearchPage = () => {
       }));
   }, [searchId, employees]);
 
+  // --- [CẬP NHẬT] HÀM XỬ LÝ TÌM KIẾM ---
   const handleSearch = (value) => {
     const cleanId = value.trim().toUpperCase();
     if (!cleanId) return;
@@ -74,37 +73,94 @@ const SearchPage = () => {
     setImageError(false);
     setImageUrl(null);
 
+    // 1. Tìm nhân viên trong danh sách
     const empInfo = employees.find((e) => e.employee_id === cleanId);
     setSelectedEmp(empInfo);
 
-    const url = `${API_URL}/images/${cleanId}.png`;
-    const img = new window.Image();
-    img.src = url;
-    img.onload = () => {
-      setImageUrl(url);
+    if (empInfo) {
+      // 2. Xác định tên file ảnh
+      const imageName = empInfo.image || empInfo.image_path || `${cleanId}.png`;
+
+      let finalUrl = '';
+
+      // 3. Xây dựng đường dẫn (Logic Dynamic - Chuẩn Production)
+      if (imageName.startsWith('http')) {
+        finalUrl = imageName;
+      } else {
+        // --- LOGIC MỚI: Tự động nhận diện môi trường ---
+        let apiUrl = import.meta.env.VITE_API_URL;
+
+        // Nếu không có biến môi trường (Localhost) -> Fallback về localhost:8000
+        if (!apiUrl) {
+          apiUrl = 'http://localhost:8000';
+        }
+
+        // Nếu là Docker (/api) -> Cắt bỏ /api để lấy root server
+        // Kết quả: apiUrl="" (rỗng) -> Đường dẫn sẽ là tương đối
+        const SERVER_ROOT = apiUrl.replace(/\/api$/, '');
+
+        // Xử lý đường dẫn file (Fix lỗi Windows backslash)
+        let cleanPath = imageName.replace(/\\/g, '/');
+
+        // Bỏ dấu / ở đầu nếu có
+        if (cleanPath.startsWith('/')) {
+          cleanPath = cleanPath.substring(1);
+        }
+
+        // Ghép URL:
+        // - Local: http://localhost:8000/images/NV01.png
+        // - Docker: /images/NV01.png (Nginx tự điều hướng)
+        finalUrl = `${SERVER_ROOT}/images/${cleanPath}`;
+        // ---------------------------------------------------
+      }
+
+      console.log('Checking Image URL:', finalUrl);
+
+      // 4. Preload ảnh để kiểm tra tồn tại
+      const img = new window.Image();
+      img.src = finalUrl;
+      img.onload = () => {
+        setImageUrl(finalUrl);
+        setLoading(false);
+      };
+      img.onerror = () => {
+        console.error('Không tìm thấy ảnh tại:', finalUrl);
+        setImageError(true);
+        setLoading(false);
+      };
+    } else {
       setLoading(false);
-    };
-    img.onerror = () => {
-      setImageError(true);
-      setLoading(false);
-    };
+      message.warning('Không tìm thấy nhân viên này trong hệ thống');
+    }
   };
 
+  // --- HÀM DOWNLOAD (Giữ nguyên vì dùng axiosClient đã chuẩn) ---
   const handleDownload = async () => {
     if (!imageUrl || imageError) return;
     setDownloading(true);
     try {
-      const response = await axiosClient.get(`/download/${selectedEmp?.employee_id || searchId}`, {
+      const targetId = selectedEmp?.employee_id || searchId;
+
+      const response = await axiosClient.get(`/download/${targetId}`, {
         responseType: 'blob',
       });
-      const blob = new Blob([response.data], { type: 'image/png' });
+
+      const contentType = response.headers['content-type'] || 'image/png';
+      const blob = new Blob([response.data], { type: contentType });
+
+      let extension = 'png';
+      if (contentType.includes('jpeg') || contentType.includes('jpg')) extension = 'jpg';
+      else if (contentType.includes('webp')) extension = 'webp';
+
       const link = document.createElement('a');
       link.href = window.URL.createObjectURL(blob);
-      link.download = `${selectedEmp?.employee_id || searchId}.png`;
+      link.download = `${targetId}.${extension}`;
       link.click();
+
       message.success(`Đã tải xuống: ${link.download}`);
-    } catch {
-      message.error('Lỗi tải ảnh từ Server.');
+    } catch (error) {
+      console.error(error);
+      message.error('Lỗi tải ảnh (File không tồn tại trên Server).');
     } finally {
       setDownloading(false);
     }
@@ -149,7 +205,6 @@ const SearchPage = () => {
       </Card>
 
       {loading ? (
-        // SỬA LỖI SPIN: Bọc trong container để không bị Warning tip
         <Flex vertical align="center" justify="center" style={{ padding: 100 }}>
           <Spin size="large" />
           <Text type="secondary" style={{ marginTop: 16 }}>
@@ -208,7 +263,6 @@ const SearchPage = () => {
                     {selectedEmp.employee_department}
                   </Descriptions.Item>
                   <Descriptions.Item label="Trạng thái">
-                    {/* LỖI THIẾU TAG ĐÃ ĐƯỢC FIX TẠI ĐÂY */}
                     <Tag color={selectedEmp.employee_status === 'Active' ? 'green' : 'red'}>
                       {selectedEmp.employee_status?.toUpperCase()}
                     </Tag>

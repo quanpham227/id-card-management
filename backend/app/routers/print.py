@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+import pytz
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case, or_
@@ -51,31 +52,23 @@ def log_print(request: schemas.PrintRequest, db: Session = Depends(get_db)):
 @router.get("/stats")
 def get_print_stats(db: Session = Depends(get_db)):
     try:
+        # Tự động chọn hàm lấy tháng tùy theo loại DB (Postgres hay SQLite)
+        engine_name = db.get_bind().dialect.name
+        if engine_name == 'postgresql':
+            date_format = func.to_char(models.PrintLog.printed_at, 'YYYY-MM')
+            tool_date_format = func.to_char(models.ToolPrintLog.printed_at, 'YYYY-MM')
+        else:
+            date_format = func.strftime("%Y-%m", models.PrintLog.printed_at)
+            tool_date_format = func.strftime("%Y-%m", models.ToolPrintLog.printed_at)
+
         # 1. Thống kê Thẻ Nhân Viên
-        # SỬA LỖI: Dùng ilike (không phân biệt hoa thường) và % để bắt các biến thể chuỗi
         emp_stats = (
             db.query(
-                func.strftime("%Y-%m", models.PrintLog.printed_at).label("month"),
-                # Đếm Pregnancy (Bắt tất cả: Pregnancy Register, Pregnancy >7 months...)
-                func.sum(
-                    case((models.PrintLog.reason.ilike("%Pregnancy%"), 1), else_=0)
-                ).label("pregnancy"),
-                # Đếm Has Baby
-                func.sum(
-                    case((models.PrintLog.reason.ilike("%Baby%"), 1), else_=0)
-                ).label("has_baby"),
-                # Đếm Normal (Staff, Worker, Manager...)
-                # Logic: Nếu không phải Bầu và không phải Con nhỏ thì là Normal
-                func.sum(
-                    case(
-                        (
-                            ~models.PrintLog.reason.ilike("%Pregnancy%")
-                            & ~models.PrintLog.reason.ilike("%Baby%"),
-                            1,
-                        ),
-                        else_=0,
-                    )
-                ).label("normal"),
+                date_format.label("month"),
+                func.sum(case((models.PrintLog.reason.ilike("%Pregnancy%"), 1), else_=0)).label("pregnancy"),
+                func.sum(case((models.PrintLog.reason.ilike("%Baby%"), 1), else_=0)).label("has_baby"),
+                # Cách đếm Normal an toàn hơn: Tổng số dòng trừ đi Pregnancy và Baby
+                func.count(models.PrintLog.id).label("total_emp_logs")
             )
             .group_by("month")
             .all()
@@ -84,58 +77,53 @@ def get_print_stats(db: Session = Depends(get_db)):
         # 2. Thống kê Thẻ Công Cụ
         tool_stats = (
             db.query(
-                func.strftime("%Y-%m", models.ToolPrintLog.printed_at).label("month"),
+                tool_date_format.label("month"),
                 func.sum(models.ToolPrintLog.quantity).label("tool_total"),
             )
             .group_by("month")
             .all()
         )
 
-        # 3. Gộp dữ liệu (Merge Data)
         combined = {}
 
-        # - Xử lý nhân viên
+        # 3. Gộp dữ liệu nhân viên
         for row in emp_stats:
-            month = row.month
+            month = row.month or "Unknown"
+            preg = int(row.pregnancy or 0)
+            baby = int(row.has_baby or 0)
+            total_logs = int(row.total_emp_logs or 0)
+            
+            # Tính Normal bằng cách lấy Tổng trừ các loại đặc biệt
+            normal = total_logs - preg - baby
+            if normal < 0: normal = 0
+
             combined[month] = {
                 "month": month,
-                "Pregnancy": int(row.pregnancy or 0),
-                "HasBaby": int(row.has_baby or 0),
-                "Normal": int(row.normal or 0),
+                "Pregnancy": preg,
+                "HasBaby": baby,
+                "Normal": normal,
                 "Tools": 0,
                 "total": 0,
             }
 
-        # - Xử lý công cụ (Nếu tháng đó chưa có trong dict thì tạo mới)
+        # 4. Gộp dữ liệu công cụ
         for row in tool_stats:
-            month = row.month
+            month = row.month or "Unknown"
             val = int(row.tool_total or 0)
-
             if month not in combined:
-                combined[month] = {
-                    "month": month,
-                    "Pregnancy": 0,
-                    "HasBaby": 0,
-                    "Normal": 0,
-                    "Tools": 0,
-                    "total": 0,
-                }
-
+                combined[month] = {"month": month, "Pregnancy": 0, "HasBaby": 0, "Normal": 0, "Tools": 0, "total": 0}
             combined[month]["Tools"] = val
 
-        # 4. Tính tổng và chuyển về List
+        # 5. Tính tổng cuối cùng
         final_result = []
-        for key, item in combined.items():
-            item["total"] = (
-                item["Pregnancy"] + item["HasBaby"] + item["Normal"] + item["Tools"]
-            )
+        for item in combined.values():
+            item["total"] = item["Pregnancy"] + item["HasBaby"] + item["Normal"] + item["Tools"]
             final_result.append(item)
 
-        # Sắp xếp theo tháng
         return sorted(final_result, key=lambda x: x["month"])
 
     except Exception as e:
-        logger.error(f"Stats Error: {e}")
+        logger.error(f"Stats Error chi tiết: {str(e)}")
         return []
 
 
@@ -145,19 +133,34 @@ def get_print_stats(db: Session = Depends(get_db)):
 @router.post("/log-tool")
 def log_tool_print(request: schemas.ToolPrintCreate, db: Session = Depends(get_db)):
     try:
+        # 1. Xử lý múi giờ Việt Nam (Hoặc dùng datetime.utcnow())
+        tz_vietnam = pytz.timezone('Asia/Ho_Chi_Minh')
+        current_time = datetime.now(tz_vietnam)
+
+        # 2. Tạo đối tượng Log mới
         new_log = models.ToolPrintLog(
             card_type=request.card_type,
             serial_number=request.serial_number,
-            quantity=request.quantity,
+            # Ép kiểu số để an toàn cho tính toán thống kê sau này
+            quantity=int(request.quantity or 0), 
             orientation=request.orientation,
             printed_by=request.printed_by,
-            printed_at=datetime.now(),
+            printed_at=current_time, 
         )
+
         db.add(new_log)
+        db.flush() # Đẩy dữ liệu vào staging để kiểm tra lỗi ràng buộc trước khi commit
         db.commit()
         db.refresh(new_log)
+
+        logger.info(f"Đã lưu log in thẻ phụ cho: {request.card_type}")
         return {"status": "success", "id": new_log.id}
+
     except Exception as e:
         db.rollback()
-        logger.error(f"Lỗi lưu log in thẻ phụ: {e}")
-        raise HTTPException(status_code=500, detail="Không thể lưu lịch sử in công cụ")
+        # Log chi tiết lỗi ra console/file để debug dễ hơn
+        logger.error(f"Lỗi lưu log in thẻ phụ chi tiết: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Không thể lưu lịch sử in công cụ: {str(e)}"
+        )

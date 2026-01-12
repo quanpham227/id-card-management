@@ -45,17 +45,32 @@ const PrintStatistics = () => {
       const res = await axiosClient.get('/print/stats');
       const result = res.data;
 
-      if (Array.isArray(result)) {
+      // Kiểm tra nếu có dữ liệu trả về và là một mảng
+      if (Array.isArray(result) && result.length > 0) {
         setData(result);
-        const pregnancy = result.reduce((acc, curr) => acc + (curr.Pregnancy || 0), 0);
-        const hasBaby = result.reduce((acc, curr) => acc + (curr.HasBaby || 0), 0);
-        const tools = result.reduce((acc, curr) => acc + (curr.Tools || 0), 0);
-        const total = result.reduce((acc, curr) => acc + (curr.total || 0), 0);
-        const normal = total - pregnancy - hasBaby - tools;
 
-        setSummary({ total, pregnancy, hasBaby, tools, normal });
+        // Tính toán tổng số lượng cho các thẻ Summary
+        // Sử dụng Number() để đảm bảo không bị cộng chuỗi nếu Backend trả về string
+        const pregnancy = result.reduce((acc, curr) => acc + (Number(curr.Pregnancy) || 0), 0);
+        const hasBaby = result.reduce((acc, curr) => acc + (Number(curr.HasBaby) || 0), 0);
+        const tools = result.reduce((acc, curr) => acc + (Number(curr.Tools) || 0), 0);
+        const normal = result.reduce((acc, curr) => acc + (Number(curr.Normal) || 0), 0);
+        const total = result.reduce((acc, curr) => acc + (Number(curr.total) || 0), 0);
+
+        setSummary({
+          total,
+          pregnancy,
+          hasBaby,
+          tools,
+          normal,
+        });
+      } else {
+        // Trường hợp mảng rỗng
+        setData([]);
+        setSummary({ total: 0, pregnancy: 0, hasBaby: 0, tools: 0, normal: 0 });
       }
-    } catch {
+    } catch (error) {
+      console.error('Lỗi API Stats:', error);
       message.error('Failed to load statistics data');
     } finally {
       setLoading(false);
@@ -72,7 +87,7 @@ const PrintStatistics = () => {
       [
         { name: 'Maternity', value: summary.pregnancy, color: COLORS.Pregnancy },
         { name: 'Child Care', value: summary.hasBaby, color: COLORS.HasBaby },
-        { name: 'Standard', value: summary.normal, color: COLORS.Normal },
+        { name: 'Standard', value: summary.normal, color: COLORS.Normal }, // Chú ý: summary.normal
         { name: 'Tools', value: summary.tools, color: COLORS.Tools },
       ].filter((v) => v.value > 0),
     [summary]

@@ -36,17 +36,35 @@ const UploadPage = () => {
   // --- 1. AUTH & CONFIG ---
   const user = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
 
-  // [CẬP NHẬT] Đổi tên hàm từ CAN_OPERATE thành CAN_MANAGE_HR_DATA cho khớp với file permissions mới
+  // Check quyền upload
   const canUpload = PERMISSIONS.CAN_MANAGE_HR_DATA(user.role);
 
-  const API_URL = import.meta.env.VITE_API_URL || '';
+  // --- [CẬP NHẬT] XỬ LÝ URL UPLOAD DYNAMIC ---
+  // Logic này đảm bảo chạy đúng trên cả Localhost (cổng 8000) và Docker (qua Nginx /api)
+  let baseUrl = import.meta.env.VITE_API_URL;
+
+  // 1. Fallback về localhost:8000 nếu không có biến môi trường
+  if (!baseUrl) {
+    baseUrl = 'http://localhost:8000/api';
+  }
+
+  // 2. Xóa dấu gạch chéo ở cuối nếu có (để tránh double slash //)
+  if (baseUrl.endsWith('/')) {
+    baseUrl = baseUrl.slice(0, -1);
+  }
+
+  // 3. Tạo đường dẫn upload hoàn chỉnh
+  // - Localhost: "http://localhost:8000/upload"
+  // - Docker (/api): "/api/upload"
+  const uploadAction = `${baseUrl}/upload`;
+  // --------------------------------------------
 
   // --- 2. UPLOAD PROPS CONFIG ---
   const uploadProps = useMemo(
     () => ({
       name: 'files',
       multiple: true,
-      action: API_URL ? `${API_URL}/api/upload` : '/api/upload',
+      action: uploadAction, // Sử dụng đường dẫn đã xử lý ở trên
       headers: {
         Authorization: `Bearer ${localStorage.getItem('token')}`,
         'X-User-Role': user.role,
@@ -92,7 +110,7 @@ const UploadPage = () => {
         }
       },
     }),
-    [canUpload, uploading, fileList, user.role, API_URL]
+    [canUpload, uploading, fileList, user.role, uploadAction]
   );
 
   return (

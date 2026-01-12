@@ -11,26 +11,48 @@ const IdCard = ({ data, bgOption = 1, showStamp = false }) => {
 
   if (!data) return null;
 
-  const API_URL = import.meta.env.VITE_API_URL || '';
-  const employeeImg = API_URL
-    ? `${API_URL}/images/${data.employee_id}.png`
-    : `/images/${data.employee_id}.png`;
+  // --- [CẬP NHẬT LOGIC ẢNH MỚI - CHUẨN HÓA] ---
+
+  // 1. Lấy tên file
+  const imageName = data.image || data.image_path || `${data.employee_id}.png`;
+
+  let employeeImg = '';
+
+  if (imageName.startsWith('http')) {
+    // Nếu là link online
+    employeeImg = imageName;
+  } else {
+    // 2. Logic Dynamic URL (Giống SearchPage & TicketAttachments)
+    let apiUrl = import.meta.env.VITE_API_URL;
+
+    // Nếu không có biến môi trường -> Fallback về localhost
+    if (!apiUrl) {
+      apiUrl = 'http://localhost:8000';
+    }
+
+    // Bỏ đuôi /api nếu có để lấy root
+    const SERVER_ROOT = apiUrl.replace(/\/api$/, '');
+
+    // 3. Làm sạch đường dẫn ảnh (QUAN TRỌNG: Fix lỗi Windows path)
+    // Thay thế dấu gạch ngược "\" thành "/"
+    let cleanName = imageName.replace(/\\/g, '/');
+
+    // Xóa dấu "/" ở đầu để tránh bị trùng
+    if (cleanName.startsWith('/')) {
+      cleanName = cleanName.substring(1);
+    }
+
+    // 4. Ghép URL
+    // - Local: http://localhost:8000/images/NV01.png
+    // - Docker: /images/NV01.png
+    employeeImg = `${SERVER_ROOT}/images/${cleanName}`;
+  }
+  // ----------------------------------
 
   const maternityType = data.maternity_type || '';
-
-  // 1. ĐỊNH NGHĨA CÁC LOẠI THAI SẢN
   const MATERNITY_TYPES = ['Pregnancy (>7 months)', 'Has Baby', 'Pregnancy Register'];
-
-  // Kiểm tra xem nhân viên có thuộc diện thai sản không
   const isMaternity = MATERNITY_TYPES.includes(maternityType);
-
-  // 2. XÁC ĐỊNH HƯỚNG THẺ (CẬP NHẬT TẠI ĐÂY)
-  // Danh sách các chức vụ dùng thẻ DỌC
   const PORTRAIT_ROLES = ['Worker', 'Training'];
-
-  // Logic:
-  // - Nếu chức vụ nằm trong danh sách ['Worker', 'Training']
-  // - VÀ Không thuộc diện thai sản (Thai sản luôn ưu tiên thẻ Ngang)
   const isPortrait = PORTRAIT_ROLES.includes(data.employee_type) && !isMaternity;
 
   // --- HÀM HELPER XỬ LÝ NGÀY THÁNG ---
@@ -40,21 +62,18 @@ const IdCard = ({ data, bgOption = 1, showStamp = false }) => {
     return d.isValid() ? d : null;
   };
 
-  // --- 3. XỬ LÝ DỮ LIỆU HIỂN THỊ THAI SẢN ---
+  // --- XỬ LÝ HIỂN THỊ THAI SẢN ---
   let maternityDisplay = null;
-
   if (isMaternity) {
     const dateBegin = formatDateSafe(data.maternity_begin);
     const dateEnd = formatDateSafe(data.maternity_end);
 
     if (maternityType === 'Has Baby') {
-      // Con nhỏ: Giữ nguyên ngày
       maternityDisplay = {
         line1: dateBegin ? `Từ ngày: ${dateBegin.format('DD/MM/YYYY')}` : 'Từ ngày: ---',
         line2: dateEnd ? `Đến ngày: ${dateEnd.format('DD/MM/YYYY')}` : 'Đến ngày: ---',
       };
     } else {
-      // Bầu: Cộng 1 ngày vào ngày kết thúc
       maternityDisplay = {
         line1: dateBegin
           ? `Ngày thông báo mang thai: ${dateBegin.format('DD/MM/YYYY')}`
@@ -66,20 +85,18 @@ const IdCard = ({ data, bgOption = 1, showStamp = false }) => {
     }
   }
 
-  // --- 4. CHỌN HÌNH NỀN ---
+  // --- CHỌN HÌNH NỀN ---
   let bgUrl = '';
   if (maternityType === 'Has Baby') {
     bgUrl = '/assets/baby-ngang.png';
   } else if (isMaternity) {
-    // Các loại bầu còn lại
     bgUrl = '/assets/bau-ngang.png';
   } else {
-    // Thẻ thường
     bgUrl = isPortrait
-      ? '/assets/card-bg-vertical.png' // Nền dọc cho Worker/Training
+      ? '/assets/card-bg-vertical.png'
       : bgOption === 1
         ? '/assets/card-bg-horizontal.png'
-        : '/assets/card-bg-horizontal-2.png'; // Nền ngang cho Staff/Manager
+        : '/assets/card-bg-horizontal-2.png';
   }
 
   const bgImage = `url("${bgUrl}")`;
@@ -93,18 +110,12 @@ const IdCard = ({ data, bgOption = 1, showStamp = false }) => {
     imageError,
     setImageError,
     showStamp,
-    pregnancyInfo: maternityDisplay, // Truyền thông tin thai sản (nếu có)
+    pregnancyInfo: maternityDisplay,
   };
 
   return (
     <div className="print-container">
-      {isPortrait ? (
-        // Render thẻ dọc (Worker, Training)
-        <VerticalCard {...commonProps} />
-      ) : (
-        // Render thẻ ngang (Staff, Manager, Thai sản)
-        <HorizontalCard {...commonProps} />
-      )}
+      {isPortrait ? <VerticalCard {...commonProps} /> : <HorizontalCard {...commonProps} />}
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
