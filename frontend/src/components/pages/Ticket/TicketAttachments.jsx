@@ -27,23 +27,31 @@ const parseAttachments = (data) => {
 // 2. Hàm tạo URL chuẩn
 const getFullImageUrl = (path) => {
   if (!path) return '';
-  if (path.startsWith('http')) return path; // Ảnh online
+  if (path.startsWith('http')) return path; // Ảnh online giữ nguyên
 
-  // Lấy API URL từ env, mặc định localhost:8000
-  let baseUrl = import.meta.env.VITE_API_URL;
+  // 1. Lấy API URL từ env
+  let baseUrl = import.meta.env.VITE_API_URL || '';
 
-  // [Real World Logic]: Luôn đảm bảo baseUrl không có dấu / ở cuối
+  // 2. Chuẩn hóa baseUrl
   if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
-  // Nếu baseUrl là /api (tương đối), cắt bỏ /api để lấy root
-  baseUrl = baseUrl.replace(/\/api$/, '');
-  // Nếu rỗng (trường hợp relative path), fallback về localhost để dev dễ
-  if (!baseUrl) baseUrl = 'http://localhost:8000';
 
-  // Chuẩn hóa path ảnh (Bỏ dấu \ của Windows, bỏ dấu / ở đầu)
+  // Cắt bỏ /api ở cuối nếu có
+  baseUrl = baseUrl.replace(/\/api$/, '');
+
+  // 3. XỬ LÝ THÔNG MINH:
+  // Nếu sau khi cắt /api mà baseUrl rỗng HOẶC đang chạy trên Production (Ubuntu)
+  // thì KHÔNG ĐƯỢC gán localhost:8000. Hãy để nó rỗng để trình duyệt tự dùng IP hiện tại.
+  if (!baseUrl && import.meta.env.MODE === 'development') {
+    baseUrl = 'http://localhost:8000';
+  }
+
+  // 4. Chuẩn hóa path ảnh
   let cleanPath = path.replace(/\\/g, '/');
   if (cleanPath.startsWith('/')) cleanPath = cleanPath.substring(1);
 
-  return `${baseUrl}/${cleanPath}`;
+  // Trả về URL. Nếu baseUrl rỗng, nó sẽ trả về dạng "/uploads/tickets/..."
+  // Trình duyệt sẽ tự hiểu là lấy từ server hiện tại (Cổng 81).
+  return baseUrl ? `${baseUrl}/${cleanPath}` : `/${cleanPath}`;
 };
 
 // --- COMPONENT CHÍNH ---

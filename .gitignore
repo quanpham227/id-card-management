@@ -91,3 +91,4 @@ dist/
 .gitignore
 staffhub-deploy.tar
 DEPLOY_GUIDE.md
+staffhub.7z

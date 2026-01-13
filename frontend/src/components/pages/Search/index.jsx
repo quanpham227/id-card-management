@@ -114,8 +114,6 @@ const SearchPage = () => {
         // ---------------------------------------------------
       }
 
-      console.log('Checking Image URL:', finalUrl);
-
       // 4. Preload ảnh để kiểm tra tồn tại
       const img = new window.Image();
       img.src = finalUrl;
