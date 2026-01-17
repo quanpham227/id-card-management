@@ -32,7 +32,7 @@ LOG_FILE = os.path.join(DATA_DIR, "print_logs.json")
 # --- 2. CẤU HÌNH SERVER ---
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", 8000))
-HR_API_URL = os.getenv("HR_API_URL", "http://default-url...")
+HR_API_URL = os.getenv("HR_API_URL", "http://113.160.232.187:81/pidn/api/gwhrWebService.asmx/GetEmployeeList")
 
 # --- 3. CẤU HÌNH DATABASE ---
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./sql_app.db")

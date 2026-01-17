@@ -72,3 +72,18 @@ a:hover {
   background-color: #d9d9d9;
   border-radius: 4px;
 }
+/* Class cho nút Excel */
+.btn-excel {
+  background-color: #217346 !important; /* Màu xanh Excel gốc */
+  border-color: #217346 !important;
+  color: #fff !important;
+  transition: all 0.3s; /* Hiệu ứng chuyển màu mượt mà */
+}
+
+/* Hiệu ứng khi Hover */
+.btn-excel:hover {
+  background-color: #1b5e2e !important; /* Xanh đậm hơn khi di chuột vào */
+  border-color: #1b5e2e !important;
+  color: #fff !important;
+  opacity: 0.9;
+}

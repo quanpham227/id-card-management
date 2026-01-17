@@ -49,45 +49,56 @@ const MainLayout = () => {
   const user = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
   const userRole = user.role;
 
-  // --- 1. LOGIC GỌI API & XỬ LÝ THÔNG BÁO ---
-  // Sử dụng useCallback để giữ tham chiếu hàm ổn định
+  // --- 1. LOGIC GỌI API & XỬ LÝ THÔNG BÁO (ĐÃ NÂNG CẤP) ---
   const fetchNotifications = useCallback(async () => {
     // Chỉ Admin/Manager mới cần chạy logic này
     if (!['Admin', 'Manager'].includes(userRole)) return;
 
     try {
       // Gọi API lấy danh sách ticket chưa xử lý (Open)
-      // Lưu ý: Đảm bảo Backend đã có endpoint /manage/open-only như hướng dẫn trước
-      // Nếu chưa có, dùng tạm: /tickets/manage?status=Open
-      const res = await axiosClient.get('/tickets/manage/open-only');
-      const data = res.data || res; // Xử lý dữ liệu trả về tùy cấu hình axios
+      // Thêm config timeout riêng cho request này (ví dụ 10s) để fail nhanh hơn nếu server bận
+      const res = await axiosClient.get('/tickets/manage/open-only', {
+        timeout: 10000, // 10 giây (Ngắn hơn mặc định để đỡ treo UI ngầm)
+      });
+
+      const data = res.data || res;
 
       // Cập nhật số lượng và hiển thị Popup nếu có tin mới
       setUnreadCount((prevCount) => {
-        // Nếu số lượng mới lớn hơn số cũ (và không phải lần load đầu tiên từ 0)
         if (data.length > prevCount && prevCount !== 0) {
           notification.info({
             message: 'New Ticket Alert',
             description: `You have ${data.length} open tickets requiring attention.`,
             placement: 'bottomRight',
-            duration: 4, // Tự tắt sau 4s
+            duration: 4,
           });
-
-          // (Tùy chọn) Phát âm thanh
-          // const audio = new Audio('/assets/notification.mp3');
-          // audio.play().catch(e => console.log("Audio play failed", e));
         }
         return data.length;
       });
 
       // Cập nhật danh sách hiển thị trong Dropdown
-      // So sánh JSON string để tránh set state nếu dữ liệu y hệt (tránh render thừa)
       setNotifications((prev) => {
-        const newData = data.slice(0, 5); // Chỉ lấy 5 cái mới nhất
+        const newData = data.slice(0, 5);
         return JSON.stringify(prev) === JSON.stringify(newData) ? prev : newData;
       });
     } catch (error) {
-      console.error('Polling Notification Error:', error);
+      // 🔥 XỬ LÝ LỖI ÊM ĐẸP (SILENT FAIL)
+
+      // 1. Nếu là lỗi Timeout (Server bận do Sync ảnh) hoặc Hủy kết nối
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        // Im lặng bỏ qua, đợi lần polling tiếp theo (30s sau)
+        // console.warn("Polling skipped due to server timeout (System busy)");
+        return;
+      }
+
+      // 2. Nếu lỗi mạng (Network Error) hoặc lỗi Server (500)
+      if (error.response?.status >= 500 || error.message === 'Network Error') {
+        // Cũng im lặng bỏ qua để không spam console đỏ lòm
+        return;
+      }
+
+      // 3. Các lỗi khác (như 401 Unauthorized) thì log ra để biết đường fix
+      console.error('Polling Notification Error:', error.message);
     }
   }, [userRole]);
 
@@ -104,7 +115,7 @@ const MainLayout = () => {
 
     // Thiết lập chu kỳ lặp lại mỗi 30 giây
     const interval = setInterval(() => {
-      runPolling();
+      if (isMounted) runPolling();
     }, 30000);
 
     // Cleanup khi component unmount
