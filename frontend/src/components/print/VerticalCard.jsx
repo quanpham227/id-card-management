@@ -5,8 +5,8 @@ const VerticalCard = ({ data, employeeImg, bgImage, imageError, setImageError, s
   return (
     <div
       style={{
-        width: '54mm',
-        height: '85.6mm',
+        width: '55mm',
+        height: '87mm',
         backgroundImage: bgImage,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
@@ -110,7 +110,7 @@ const VerticalCard = ({ data, employeeImg, bgImage, imageError, setImageError, s
         {/* 3. MÃ NHÂN VIÊN */}
         <div
           style={{
-            marginTop: '1.0mm',
+            marginTop: '1mm',
             fontSize: '11.5px',
             fontWeight: 600,
             letterSpacing: '1px',
@@ -122,7 +122,7 @@ const VerticalCard = ({ data, employeeImg, bgImage, imageError, setImageError, s
         {/* 4. BỘ PHẬN */}
         <div
           style={{
-            marginTop: '1.0mm',
+            marginTop: '2mm',
             fontSize: '10px',
             fontWeight: 500,
             color: '#262626',

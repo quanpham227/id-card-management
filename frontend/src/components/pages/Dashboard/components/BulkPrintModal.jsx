@@ -55,10 +55,7 @@ const BulkPrintModal = ({ open, onClose, selectedEmployees = [] }) => {
     contentRef: componentRef,
     documentTitle: `In_The_Nhan_Vien_${new Date().getTime()}`,
     // Tùy chỉnh CSS @page dựa trên chế độ
-    pageStyle:
-      printMode === 'card'
-        ? `@page { margin: 0; size: 55mm 87mm; } body { margin: 0; -webkit-print-color-adjust: exact; }` // Khổ thẻ
-        : `@page { margin: 10mm; size: A4; } body { margin: 0; -webkit-print-color-adjust: exact; }`, // Khổ A4
+    
   });
 
   // --- 3. HÀM XỬ LÝ CHÍNH: IN & LƯU LOG - GIỮ NGUYÊN ---
@@ -112,7 +109,17 @@ const BulkPrintModal = ({ open, onClose, selectedEmployees = [] }) => {
       setLoading(false);
     }
   };
+const firstEmp = selectedEmployees[0] || {};
+const matType = (firstEmp.maternity_type || '').toString();
+  const MATERNITY_TYPES = ['Pregnancy (>7 months)', 'Has Baby', 'Pregnancy Register'];
+  const isMaternity = MATERNITY_TYPES.includes(matType);
+  const PORTRAIT_ROLES = ['Worker', 'Training']; // Các chức vụ in thẻ dọc
+  
+  // Xác định xem thẻ này là Dọc (Portrait) hay Ngang (Landscape)
+  const isPortraitCard = PORTRAIT_ROLES.includes(firstEmp.employee_type) && !isMaternity;
 
+  // Nếu là thẻ dọc thì khổ 55x87, nếu thẻ ngang thì đảo ngược thành 87x55
+  const cardPageSize = isPortraitCard ? '55mm 87mm' : '87mm 55mm';
   return (
     <Modal
       title={
@@ -210,7 +217,7 @@ const BulkPrintModal = ({ open, onClose, selectedEmployees = [] }) => {
                 {selectedEmployees.map((emp, index) => {
                   const isMissingImg = !emp.employee_image || emp.employee_image.includes('N/A');
                   return (
-                    <div key={emp.employee_id || index} className="print-item">
+                    <div key={emp.employee_id || index} className="print-item" style={{border : '1px solid #000'}}>
                       {!open
                         ? null
                         : isMissingImg && (
@@ -218,7 +225,7 @@ const BulkPrintModal = ({ open, onClose, selectedEmployees = [] }) => {
                               <Badge status="error" text="Thiếu ảnh" />
                             </div>
                           )}
-                      <IdCard data={emp} bgOption={1} showStamp={true} fixPageSize={false} />
+                      <IdCard data={emp} bgOption={1} showStamp={false} fixPageSize={false} />
                     </div>
                   );
                 })}
@@ -336,46 +343,45 @@ const BulkPrintModal = ({ open, onClose, selectedEmployees = [] }) => {
 
           /* --- LOGIC 2: CHẾ ĐỘ IN GIẤY A4 (A4 Mode) --- */
           .layout-a4 {
-    background: white !important;
-    padding: 0 !important;
-    /* 🔥 SỬA: Đừng set width cứng 210mm ở đây, hãy để 100% vùng khả dụng */
-    width: 100% !important; 
-    margin: 0 !important;
-}
+            background: white !important;
+            padding: 0 !important;
+            width: 100% !important; 
+            margin: 0 !important;
+          }
+      
+        .layout-a4 .print-grid {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            justify-content: flex-start !important; 
+            gap: 3mm; 
+            padding-left: 0mm; 
+        }
+        .layout-a4 .print-item {
+            page-break-after: auto; 
+            page-break-inside: avoid;
+            width: auto !important;
+            height: auto !important;
+            flex: 0 0 auto;
+            position: relative !important;
+            padding: 0px !important;
+            border: !important;
+            margin: 1px 3px 3px 0;
+           
+            
+        }
 
-.layout-a4 .a4-guide-header {
-    display: block; 
-    text-align: center; 
-    font-weight: bold; 
-    margin-bottom: 5mm; /* Giảm lề dưới tiêu đề chút */
-    font-size: 14pt;
-    padding-top: 10mm; /* Thêm chút lề trên cho đẹp */
-}
+        .layout-a4 .print-item .print-container {
+            position: relative !important;
+            left: auto !important; top: auto !important;
+            border: 1px solid #000 !important;
+        }
 
-.layout-a4 .print-grid {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    /* 🔥 SỬA: Dùng space-evenly hoặc flex-start */
-    justify-content: flex-start !important; 
-    gap: 5mm; 
-    padding-left: 5mm; /* Căn lề trái một chút cho cân */
-}
+        @page {
+          size: ${printMode === 'card' ? cardPageSize : 'A4'};
+          margin: ${printMode === 'card' ? '0' : '5mm'};
+        }
 
-.layout-a4 .print-item {
-    page-break-after: auto; 
-    page-break-inside: avoid; 
-    margin-bottom: 2mm;
-    
-    flex-shrink: 0; 
-    width: auto; 
-    height: auto;
-}
-
-.layout-a4 .print-item .print-container {
-    position: relative !important;
-    left: auto !important; top: auto !important;
-    border: 1px dashed #999;
-}
+        
       `}</style>
     </Modal>
   );

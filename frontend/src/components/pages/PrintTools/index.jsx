@@ -76,8 +76,8 @@ const PrintToolsPage = () => {
     onAfterPrint: handleSavePrintHistory,
   });
 
-  const printWidth = orientation === 'portrait' ? '54mm' : '85.6mm';
-  const printHeight = orientation === 'portrait' ? '85.6mm' : '54mm';
+  const printWidth = orientation === 'portrait' ? '55mm' : '87mm';
+  const printHeight = orientation === 'portrait' ? '87mm' : '55mm';
 
   return (
     <div style={{ padding: '0 10px' }}>

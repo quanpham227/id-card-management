@@ -82,8 +82,8 @@ const IdCard = ({ data, bgOption = 1, showStamp = false, fixPageSize = true }) =
   }
 
   const bgImage = `url("${bgUrl}")`;
-  const width = isPortrait ? '54mm' : '85.6mm';
-  const height = isPortrait ? '85.6mm' : '54mm';
+  const width = isPortrait ? '55mm' : '87mm';
+  const height = isPortrait ? '87mm' : '55mm';
 
   const commonProps = {
     data,
@@ -117,7 +117,7 @@ const IdCard = ({ data, bgOption = 1, showStamp = false, fixPageSize = true }) =
           .print-container { 
             /* 🔥 [SỬA LỖI] Chỉ absolute khi in lẻ, in hàng loạt thì để cha quản lý */
             position: ${fixPageSize ? 'absolute !important' : 'relative !important'}; 
-            
+            border: 1px solid #000 !important;
             top: 0 !important; 
             left: 0 !important; 
             width: ${width} !important; 

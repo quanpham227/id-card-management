@@ -2,8 +2,8 @@ import React from 'react';
 
 const BatchCard = ({ template, serialNumber, orientation = 'portrait' }) => {
   // Kích thước chuẩn thẻ nhựa CR80
-  const CR80_LONG = '85.6mm';
-  const CR80_SHORT = '54mm';
+  const CR80_LONG = '87mm';
+  const CR80_SHORT = '55mm';
 
   // Xác định kích thước khung dựa trên hướng
   const width = orientation === 'portrait' ? CR80_SHORT : CR80_LONG;

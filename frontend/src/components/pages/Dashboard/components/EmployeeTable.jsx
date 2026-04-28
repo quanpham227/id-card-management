@@ -238,6 +238,7 @@ const EmployeeTable = ({
   ];
 
   // --- LOGIC: CHỈ THÊM CỘT "IN" NẾU CÓ QUYỀN (canPrint = true) ---
+  // nếu mở chức năng in từng dòng hoặc khóa từng dòng
   if (canPrint) {
     baseColumns.push({
       title: 'In',
@@ -250,6 +251,7 @@ const EmployeeTable = ({
           type="primary"
           icon={<PrinterOutlined />}
           size="small"
+          //disabled={true}
           disabled={record.employee_status !== 'Active'}
           onClick={(e) => {
             e.stopPropagation();
